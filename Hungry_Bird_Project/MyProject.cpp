@@ -232,11 +232,11 @@ class MyProject : public BaseProject {
 		
 		if(glfwGetKey(window, GLFW_KEY_A)) {
 			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) *  deltaT;
 		}
 		if(glfwGetKey(window, GLFW_KEY_D)) {
 			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) *  deltaT;
 		}
 		if(glfwGetKey(window, GLFW_KEY_S)) {
 			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
@@ -275,7 +275,48 @@ class MyProject : public BaseProject {
 		// Here is where you actually update your uniforms
 
 		// ------------------------ BIRD BLUES ---------------------------
-		ubo.model = glm::mat4(1.0f);
+		static bool isJumping = false;
+		static bool isDescending = false;
+		static float startJump = 0.0f;
+		static float deltaTime_Jump = 0.0f;
+
+		float height = 2.0f;
+		float currentHeight = 0.0f;
+
+		static glm::mat4 birdPos = glm::mat4(1.0f);
+
+		if (glfwGetKey(window, GLFW_KEY_J)) {
+			if (!isJumping) {
+				startJump = time;
+				deltaTime_Jump = 0.0f;
+				isJumping = true;
+			}
+		}
+		if (isJumping)
+		{
+			deltaTime_Jump = time - startJump;
+			if (!isDescending) {
+				currentHeight = deltaTime_Jump * 1.0f;
+				birdPos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, currentHeight, 0.0f));
+				if (currentHeight > height) {
+					startJump = time;
+					isDescending = true;
+				}
+			}
+			else
+			{
+				currentHeight = height - deltaTime_Jump * 1.0f;
+				birdPos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, currentHeight, 0.0f));
+				if (currentHeight <= 0) {
+					isJumping = false;
+					isDescending = false;
+				}
+			}
+		}
+
+
+		ubo.model = birdPos;
+		
 		vkMapMemory(device, DS_blues.uniformBuffersMemory[0][currentImage], 0,
 							sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
