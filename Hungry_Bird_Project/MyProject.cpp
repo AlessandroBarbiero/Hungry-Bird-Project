@@ -2,8 +2,8 @@
 
 #include "MyProject.hpp"
 
-const std::string MODEL_PATH = "models/viking_room.obj";
-const std::string TEXTURE_PATH = "textures/viking_room.png";
+const std::string MODEL_PATH = "Assets/models";
+const std::string TEXTURE_PATH = "Assets/textures";
 
 
 // The global buffer object used for view and proj
@@ -31,9 +31,13 @@ class MyProject : public BaseProject {
 	Pipeline P1;
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
-	Model M1;
-	Texture T1;
-	DescriptorSet DS1;
+	Model M_blues;
+	Texture T_blues;
+	DescriptorSet DS_blues;
+
+	Model M_pig;
+	Texture T_pig;
+	DescriptorSet DS_pig;
 
 	DescriptorSet DS_global;
 	
@@ -46,9 +50,9 @@ class MyProject : public BaseProject {
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
 		// Descriptor pool sizes
-		uniformBlocksInPool = 2;
-		texturesInPool = 1;
-		setsInPool = 2;
+		uniformBlocksInPool = 3;
+		texturesInPool = 2;
+		setsInPool = 3;
 	}
 	
 	// Here you load and setup all your Vulkan objects
@@ -72,9 +76,9 @@ class MyProject : public BaseProject {
 		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", {&DSLglobal, &DSLobj});
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
-		M1.init(this, MODEL_PATH);
-		T1.init(this, TEXTURE_PATH);
-		DS1.init(this, &DSLobj, {
+		M_blues.init(this, MODEL_PATH + "/Birds/blues.obj");
+		T_blues.init(this, TEXTURE_PATH + "/texture.png");
+		DS_blues.init(this, &DSLobj, {
 		// the second parameter, is a pointer to the Uniform Set Layout of this set
 		// the last parameter is an array, with one element per binding of the set.
 		// first  elmenet : the binding number
@@ -82,8 +86,17 @@ class MyProject : public BaseProject {
 		// third  element : only for UNIFORMs, the size of the corresponding C++ object
 		// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
 					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-					{1, TEXTURE, 0, &T1}
+					{1, TEXTURE, 0, &T_blues}
 				});
+
+		M_pig.init(this, MODEL_PATH + "/Pigs/pig.obj");
+		T_pig.init(this, TEXTURE_PATH + "/texture.png");
+		DS_pig.init(this, &DSLobj, {
+						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+						{1, TEXTURE, 0, &T_pig}
+			});
+
+
 
 		DS_global.init(this, &DSLglobal, {
 						{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr},
@@ -94,9 +107,14 @@ class MyProject : public BaseProject {
 
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
-		DS1.cleanup();
-		T1.cleanup();
-		M1.cleanup();
+		DS_blues.cleanup();
+		T_blues.cleanup();
+		M_blues.cleanup();
+
+		DS_pig.cleanup();
+		T_pig.cleanup();
+		M_pig.cleanup();
+
 		P1.cleanup();
 
 		DS_global.cleanup();
@@ -118,24 +136,45 @@ class MyProject : public BaseProject {
 			P1.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
 			0, nullptr);
 				
-		VkBuffer vertexBuffers[] = {M1.vertexBuffer};
+
+		// ---------------------- BIRD BLUES ------------
+
+		VkBuffer vertexBuffers_blues[] = {M_blues.vertexBuffer};
 		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
-		VkDeviceSize offsets[] = {0};
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+		VkDeviceSize offsets_blues[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers_blues, offsets_blues);
 		// property .indexBuffer of models, contains the VkBuffer handle to its index buffer
-		vkCmdBindIndexBuffer(commandBuffer, M1.indexBuffer, 0,
+		vkCmdBindIndexBuffer(commandBuffer, M_blues.indexBuffer, 0,
 								VK_INDEX_TYPE_UINT32);
 
 		// property .pipelineLayout of a pipeline contains its layout.
 		// property .descriptorSets of a descriptor set contains its elements.
 		vkCmdBindDescriptorSets(commandBuffer,
 						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 1, 1, &DS1.descriptorSets[currentImage],
+						P1.pipelineLayout, 1, 1, &DS_blues.descriptorSets[currentImage],
 						0, nullptr);
 						
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
 		vkCmdDrawIndexed(commandBuffer,
-					static_cast<uint32_t>(M1.indices.size()), 1, 0, 0, 0);
+					static_cast<uint32_t>(M_blues.indices.size()), 1, 0, 0, 0);
+
+		// ------------------------ PIG --------------------
+
+		VkBuffer vertexBuffers_pig[] = { M_pig.vertexBuffer };
+		VkDeviceSize offsets_pig[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers_pig, offsets_pig);
+		vkCmdBindIndexBuffer(commandBuffer, M_pig.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 1, 1, &DS_pig.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(M_pig.indices.size()), 1, 0, 0, 0);
+
+
+
+
 	}
 
 	// Here is where you update the uniforms.
@@ -157,7 +196,7 @@ class MyProject : public BaseProject {
 								glm::vec3(0.0f, 0.0f, 1.0f));
 		gubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
 							   glm::vec3(0.0f, 0.0f, 0.0f),
-							   glm::vec3(0.0f, 0.0f, 1.0f));
+							   glm::vec3(0.0f, 1.0f, 0.0f));
 		gubo.proj = glm::perspective(glm::radians(45.0f),
 						swapChainExtent.width / (float) swapChainExtent.height,
 						0.1f, 10.0f);
@@ -170,10 +209,20 @@ class MyProject : public BaseProject {
 		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
 		
 		// Here is where you actually update your uniforms
-		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
+
+		// ------------------------ BIRD BLUES ---------------------------
+		ubo.model = glm::mat4(1.0f);
+		vkMapMemory(device, DS_blues.uniformBuffersMemory[0][currentImage], 0,
 							sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
+		vkUnmapMemory(device, DS_blues.uniformBuffersMemory[0][currentImage]);
+
+		// ------------------------ PIG ---------------------------
+		ubo.model = glm::translate(glm::mat4(1.0f),glm::vec3(0.5f,0.0f,0.0f));
+		vkMapMemory(device, DS_pig.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, DS_pig.uniformBuffersMemory[0][currentImage]);
 	}	
 };
 
