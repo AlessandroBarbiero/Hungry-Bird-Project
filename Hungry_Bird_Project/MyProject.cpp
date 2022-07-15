@@ -5,11 +5,16 @@
 const std::string MODEL_PATH = "models/viking_room.obj";
 const std::string TEXTURE_PATH = "textures/viking_room.png";
 
-// The uniform buffer object used in this example
-struct UniformBufferObject {
-	alignas(16) glm::mat4 model;
+
+// The global buffer object used for view and proj
+struct GlobalUniformBufferObject {
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
+};
+
+// The uniform buffer object used for models
+struct UniformBufferObject {
+	alignas(16) glm::mat4 model;
 };
 
 
@@ -19,7 +24,8 @@ class MyProject : public BaseProject {
 	// Here you list all the Vulkan objects you need:
 	
 	// Descriptor Layouts [what will be passed to the shaders]
-	DescriptorSetLayout DSL1;
+	DescriptorSetLayout DSLglobal;
+	DescriptorSetLayout DSLobj;
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
@@ -28,6 +34,8 @@ class MyProject : public BaseProject {
 	Model M1;
 	Texture T1;
 	DescriptorSet DS1;
+
+	DescriptorSet DS_global;
 	
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -38,15 +46,15 @@ class MyProject : public BaseProject {
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
 		// Descriptor pool sizes
-		uniformBlocksInPool = 1;
+		uniformBlocksInPool = 2;
 		texturesInPool = 1;
-		setsInPool = 1;
+		setsInPool = 2;
 	}
 	
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
 		// Descriptor Layouts [what will be passed to the shaders]
-		DSL1.init(this, {
+		DSLobj.init(this, {
 					// this array contains the binding:
 					// first  element : the binding number
 					// second element : the time of element (buffer or texture)
@@ -54,16 +62,19 @@ class MyProject : public BaseProject {
 					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
 				  });
+		DSLglobal.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
+			});
 
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", {&DSL1});
+		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", {&DSLglobal, &DSLobj});
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		M1.init(this, MODEL_PATH);
 		T1.init(this, TEXTURE_PATH);
-		DS1.init(this, &DSL1, {
+		DS1.init(this, &DSLobj, {
 		// the second parameter, is a pointer to the Uniform Set Layout of this set
 		// the last parameter is an array, with one element per binding of the set.
 		// first  elmenet : the binding number
@@ -73,6 +84,12 @@ class MyProject : public BaseProject {
 					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 					{1, TEXTURE, 0, &T1}
 				});
+
+		DS_global.init(this, &DSLglobal, {
+						{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr},
+			});
+
+
 	}
 
 	// Here you destroy all the objects you created!		
@@ -81,7 +98,11 @@ class MyProject : public BaseProject {
 		T1.cleanup();
 		M1.cleanup();
 		P1.cleanup();
-		DSL1.cleanup();
+
+		DS_global.cleanup();
+
+		DSLglobal.cleanup();
+		DSLobj.cleanup();
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -91,6 +112,11 @@ class MyProject : public BaseProject {
 				
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 				P1.graphicsPipeline);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
+			0, nullptr);
 				
 		VkBuffer vertexBuffers[] = {M1.vertexBuffer};
 		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
@@ -104,7 +130,7 @@ class MyProject : public BaseProject {
 		// property .descriptorSets of a descriptor set contains its elements.
 		vkCmdBindDescriptorSets(commandBuffer,
 						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 0, 1, &DS1.descriptorSets[currentImage],
+						P1.pipelineLayout, 1, 1, &DS1.descriptorSets[currentImage],
 						0, nullptr);
 						
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
@@ -122,19 +148,27 @@ class MyProject : public BaseProject {
 					
 					
 		UniformBufferObject ubo{};
+		GlobalUniformBufferObject gubo{};
+
+		void* data;
+
 		ubo.model = glm::rotate(glm::mat4(1.0f),
 								time * glm::radians(90.0f),
 								glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
+		gubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
 							   glm::vec3(0.0f, 0.0f, 0.0f),
 							   glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.proj = glm::perspective(glm::radians(45.0f),
+		gubo.proj = glm::perspective(glm::radians(45.0f),
 						swapChainExtent.width / (float) swapChainExtent.height,
 						0.1f, 10.0f);
-		ubo.proj[1][1] *= -1;
-		
-		void* data;
+		gubo.proj[1][1] *= -1;
 
+		// global
+		vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(gubo), 0, &data);
+		memcpy(data, &gubo, sizeof(gubo));
+		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
+		
 		// Here is where you actually update your uniforms
 		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
 							sizeof(ubo), 0, &data);
