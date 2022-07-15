@@ -40,6 +40,13 @@ class MyProject : public BaseProject {
 	DescriptorSet DS_pig;
 
 	DescriptorSet DS_global;
+
+	// Camera
+	glm::vec3 CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::mat4 CamDir;
+	
+
 	
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -181,33 +188,90 @@ class MyProject : public BaseProject {
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
 		static auto startTime = std::chrono::high_resolution_clock::now();
+		static float lastTime = 0.0f;
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>
 					(currentTime - startTime).count();
+		float deltaT = time - lastTime;
+		lastTime = time;
+
 					
 					
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
 
 		void* data;
+	
+		const float ROT_SPEED = glm::radians(60.0f);
+		const float MOVE_SPEED = 1.75f;
+		
+		
+		// Camera movements
+		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
+			CamAng.y += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_RIGHT)) {
+			CamAng.y -= deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_UP)) {
+			CamAng.x += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_DOWN)) {
+			CamAng.x -= deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_Q)) {
+			CamAng.z += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_E)) {
+			CamAng.z -= deltaT * ROT_SPEED;
+		}
 
-		ubo.model = glm::rotate(glm::mat4(1.0f),
-								time * glm::radians(90.0f),
-								glm::vec3(0.0f, 0.0f, 1.0f));
-		gubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
-							   glm::vec3(0.0f, 0.0f, 0.0f),
-							   glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat3 CamEye = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
+		
+		if(glfwGetKey(window, GLFW_KEY_A)) {
+			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+		}
+		if(glfwGetKey(window, GLFW_KEY_D)) {
+			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+		}
+		if(glfwGetKey(window, GLFW_KEY_S)) {
+			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+		}
+		if(glfwGetKey(window, GLFW_KEY_W)) {
+			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+		}
+		if(glfwGetKey(window, GLFW_KEY_F)) {
+			CamPos -= MOVE_SPEED * glm::vec3(0,1,0) * deltaT;
+		}
+		if(glfwGetKey(window, GLFW_KEY_R)) {
+			CamPos += MOVE_SPEED * glm::vec3(0,1,0) * deltaT;
+		}
+
+		CamDir = glm::translate(glm::transpose(glm::mat4(CamEye)), -CamPos);
+
+		
+		gubo.view = CamDir;
 		gubo.proj = glm::perspective(glm::radians(45.0f),
-						swapChainExtent.width / (float) swapChainExtent.height,
-						0.1f, 10.0f);
+			swapChainExtent.width / (float)swapChainExtent.height,
+			0.1f, 10.0f);
 		gubo.proj[1][1] *= -1;
+
 
 		// global
 		vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(gubo), 0, &data);
 		memcpy(data, &gubo, sizeof(gubo));
 		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
-		
+
+
+
+
 		// Here is where you actually update your uniforms
 
 		// ------------------------ BIRD BLUES ---------------------------
