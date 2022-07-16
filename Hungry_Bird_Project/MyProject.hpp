@@ -1,5 +1,5 @@
 // This has been adapted from the Vulkan tutorial
-
+#pragma once
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
