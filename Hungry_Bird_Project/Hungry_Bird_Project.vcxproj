@@ -122,13 +122,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.204.1\Include;C:\Users\canal\Documents\Visual Studio 2022\Libriaries\glm-0.9.9.8\glm;C:\Users\canal\Documents\Visual Studio 2022\Libriaries\glfw-3.3.6.bin.WIN64\glfw-3.3.6.bin.WIN64\include;C:\Users\canal\Documents\Visual Studio 2022\Projects\Hungry_Bird_Project\Hungry_Bird_Project\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\VulkanSDK\1.3.204.1\Include;C:\Users\aless\OneDrive\Documenti\Visual Studio 2022\Libraries\glm;C:\Users\aless\OneDrive\Documenti\Visual Studio 2022\Libraries\glfw-3.3.6.bin.WIN64\include;D:\GitProjects\Hungry_Bird_Project\Hungry_Bird_Project\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.3.204.1\Lib;C:\Users\canal\Documents\Visual Studio 2022\Libriaries\glfw-3.3.6.bin.WIN64\glfw-3.3.6.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\VulkanSDK\1.3.204.1\Lib;C:\Users\aless\OneDrive\Documenti\Visual Studio 2022\Libraries\glfw-3.3.6.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -140,7 +140,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.204.1\Include;C:\Users\canal\Documents\Visual Studio 2022\Libriaries\glm-0.9.9.8\glm;C:\Users\canal\Documents\Visual Studio 2022\Libriaries\glfw-3.3.6.bin.WIN64\glfw-3.3.6.bin.WIN64\include;C:\Users\canal\Documents\Visual Studio 2022\Projects\Hungry_Bird_Project\Hungry_Bird_Project\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\VulkanSDK\1.3.204.1\Include;C:\Users\aless\OneDrive\Documenti\Visual Studio 2022\Libraries\glm;C:\Users\aless\OneDrive\Documenti\Visual Studio 2022\Libraries\glfw-3.3.6.bin.WIN64\include;D:\GitProjects\Hungry_Bird_Project\Hungry_Bird_Project\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -148,7 +148,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.3.204.1\Lib;C:\Users\canal\Documents\Visual Studio 2022\Libriaries\glfw-3.3.6.bin.WIN64\glfw-3.3.6.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\VulkanSDK\1.3.204.1\Lib;C:\Users\aless\OneDrive\Documenti\Visual Studio 2022\Libraries\glfw-3.3.6.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
