@@ -80,7 +80,7 @@ class MyProject : public BaseProject {
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", {&DSLglobal, &DSLobj});
+		P1.init(this, "shaders/materialVert.spv", "shaders/materialFrag.spv", {&DSLglobal, &DSLobj});
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		M_blues.init(this, MODEL_PATH + "/Birds/blues.obj");
@@ -194,9 +194,8 @@ class MyProject : public BaseProject {
 					(currentTime - startTime).count();
 		float deltaT = time - lastTime;
 		lastTime = time;
+					
 
-					
-					
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
 
