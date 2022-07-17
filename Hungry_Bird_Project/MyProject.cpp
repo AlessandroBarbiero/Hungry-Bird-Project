@@ -188,10 +188,27 @@ class Asset {
 	}
 };
 
-class BirdBlue{
+class GameObject {
 	public:
-	DescriptorSet dSet;
-	UniformBufferObject update(UniformBufferObject ubo) {
+		DescriptorSet dSet;
+
+		virtual UniformBufferObject update(UniformBufferObject ubo); //must return ubo
+
+		void updateUniformBuffer(VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
+			ubo = update(ubo);
+			vkMapMemory(device, dSet.uniformBuffersMemory[0][currentImage], 0,sizeof(ubo), 0, &data);
+			memcpy(data, &ubo, sizeof(ubo));
+			vkUnmapMemory(device, dSet.uniformBuffersMemory[0][currentImage]);
+		}
+};
+
+class Bird:public GameObject {
+
+};
+
+class BirdBlue:public Bird{
+	public:
+	virtual UniformBufferObject update(UniformBufferObject ubo) override {
 		ubo.model = glm::mat4(1.0f);
 
 		return ubo;
@@ -240,16 +257,21 @@ class BirdBlue{
 	}
 	*/
 
-	void updateUniformBuffer(VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
-		ubo = update(ubo);
-		vkMapMemory(device, dSet.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(device, dSet.uniformBuffersMemory[0][currentImage]);
+};
+
+class Pig :public GameObject {
+
+};
+
+class PigStd:public Pig{
+	virtual UniformBufferObject update(UniformBufferObject ubo) override {
+		//what pig should do 
+
+		return ubo;
 	}
 };
 
-class PigStd{
+class Cannon :GameObject {
 
 };
 
