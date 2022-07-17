@@ -192,7 +192,7 @@ class GameObject {
 	public:
 		DescriptorSet dSet;
 
-		virtual UniformBufferObject update(UniformBufferObject ubo); //must return ubo
+		virtual UniformBufferObject update(UniformBufferObject ubo)=0; //must return ubo
 
 		void updateUniformBuffer(VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
 			ubo = update(ubo);
