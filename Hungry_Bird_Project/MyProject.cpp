@@ -31,6 +31,7 @@ class MyProject : public BaseProject {
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
+	Pipeline P_SkyBox;
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	Model M_blues;
@@ -40,6 +41,10 @@ class MyProject : public BaseProject {
 	Model M_pig;
 	Texture T_pig;
 	DescriptorSet DS_pig;
+
+	Model M_skyBox;
+	Texture T_skyBox;
+	DescriptorSet DS_skyBox;
 
 	DescriptorSet DS_global;
 
@@ -59,9 +64,9 @@ class MyProject : public BaseProject {
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
 		// Descriptor pool sizes
-		uniformBlocksInPool = 3;
-		texturesInPool = 2;
-		setsInPool = 3;
+		uniformBlocksInPool = 4;
+		texturesInPool = 3;
+		setsInPool = 4;
 	}
 	
 	// Here you load and setup all your Vulkan objects
@@ -83,6 +88,7 @@ class MyProject : public BaseProject {
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
 		P1.init(this, "shaders/materialVert.spv", "shaders/materialFrag.spv", {&DSLglobal, &DSLobj});
+		P_SkyBox.init(this, "shaders/skyBoxVert.spv", "shaders/skyBoxFrag.spv", {&DSLglobal, &DSLobj});
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		M_blues.init(this, MODEL_PATH + "/Birds/blues.obj");
@@ -106,6 +112,14 @@ class MyProject : public BaseProject {
 			});
 
 
+		M_skyBox.init(this, MODEL_PATH + "/SkyBox/SkyBox.obj");
+		T_skyBox.init(this, TEXTURE_PATH + "/SkyBox/SkyBox.png");
+		DS_skyBox.init(this, &DSLobj, {
+						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+						{1, TEXTURE, 0, &T_skyBox}
+			});
+
+
 
 		DS_global.init(this, &DSLglobal, {
 						{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr},
@@ -124,7 +138,12 @@ class MyProject : public BaseProject {
 		T_pig.cleanup();
 		M_pig.cleanup();
 
+		DS_skyBox.cleanup();
+		T_skyBox.cleanup();
+		M_skyBox.cleanup();
+
 		P1.cleanup();
+		P_SkyBox.cleanup();
 
 		DS_global.cleanup();
 
@@ -136,7 +155,33 @@ class MyProject : public BaseProject {
 	// You send to the GPU all the objects you want to draw,
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
-				
+
+		// --------------------- SKYBOX -------------------------
+
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P_SkyBox.graphicsPipeline);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P_SkyBox.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
+			0, nullptr);
+
+		VkBuffer vertexBuffers_skyBox[] = { M_skyBox.vertexBuffer };
+		VkDeviceSize offsets_skyBox[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers_skyBox, offsets_skyBox);
+		vkCmdBindIndexBuffer(commandBuffer, M_skyBox.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P_SkyBox.pipelineLayout, 1, 1, &DS_skyBox.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(M_skyBox.indices.size()), 1, 0, 0, 0);
+
+
+		// -------------------- Pipeline 1 -----------------------------
+
+
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 				P1.graphicsPipeline);
 
@@ -196,8 +241,6 @@ class MyProject : public BaseProject {
 					(currentTime - startTime).count();
 		float deltaT = time - lastTime;
 		lastTime = time;
-					
-		bird1.talk();
 
 
 		UniformBufferObject ubo{};
@@ -262,7 +305,7 @@ class MyProject : public BaseProject {
 		gubo.view = CamDir;
 		gubo.proj = glm::perspective(glm::radians(45.0f),
 			swapChainExtent.width / (float)swapChainExtent.height,
-			0.1f, 10.0f);
+			0.1f, 200.0f);
 		gubo.proj[1][1] *= -1;
 
 
@@ -273,6 +316,12 @@ class MyProject : public BaseProject {
 		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
 
 
+		// SkyBox
+		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(50.0f, 50.0f, 50.0f));
+		vkMapMemory(device, DS_skyBox.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, DS_skyBox.uniformBuffersMemory[0][currentImage]);
 
 
 		// Here is where you actually update your uniforms

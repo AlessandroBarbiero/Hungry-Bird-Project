@@ -1,13 +1,12 @@
 #version 450
 
-layout(location = 0) in vec3 fragTexCoord;
+layout(set=1, binding = 1) uniform sampler2D texSampler;
+
+layout(location = 2) in vec2 fragTexCoord;
 
 layout(location = 0) out vec4 outColor;
 
-// Samplers
-const int SAMP_DIFFUSE = 0;
-layout(set=1, binding=0) uniform samplerCube samplers[1];
 
 void main(){
-    outColor = texture(samplers[SAMP_DIFFUSE], tex_coord);
+    outColor = vec4(texture(texSampler, fragTexCoord).rgb, 1.0);
 }
