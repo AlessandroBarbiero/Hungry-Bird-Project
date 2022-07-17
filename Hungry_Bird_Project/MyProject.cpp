@@ -1,12 +1,10 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "MyProject.hpp"
-#include "BirdRed.h"
 
 const std::string MODEL_PATH = "Assets/models";
 const std::string TEXTURE_PATH = "Assets/textures";
 
-BirdRed bird1;
 
 // The global buffer object used for view and proj
 struct GlobalUniformBufferObject {
@@ -197,8 +195,6 @@ class MyProject : public BaseProject {
 		float deltaT = time - lastTime;
 		lastTime = time;
 					
-		bird1.talk();
-
 
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
