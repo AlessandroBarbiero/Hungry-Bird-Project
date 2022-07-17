@@ -145,48 +145,42 @@ class Asset {
 	protected:
 	Model model;
 	Texture texture;
-	std::vector<DescriptorSet> dSetVector;
+	std::vector<DescriptorSet *> dSetVector;
 
 	public:
-	void init(BaseProject *bp, std::string modelPath, std::string texturePath, DescriptorSetLayout DSLobj) {
+	void init(BaseProject *bp, std::string modelPath, std::string texturePath, DescriptorSetLayout *DSLobj) {
 		model.init(bp, MODEL_PATH + modelPath);
 		texture.init(bp, TEXTURE_PATH + texturePath);
-		DescriptorSet dSet;
-		dSetVector.push_back(dSet);
-		dSetVector.back().init(bp, &DSLobj, {
-						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-						{1, TEXTURE, 0, &texture}
-			});
 	}
 
-	void addDSet(BaseProject* bp, DescriptorSetLayout DSLobj, DescriptorSet dSet) {
+	void addDSet(BaseProject *bp, DescriptorSetLayout *DSLobj, DescriptorSet *dSet) {
 		dSetVector.push_back(dSet);
-		dSetVector.back().init(bp, &DSLobj, {
+		(*dSet).init(bp, DSLobj, {
 						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 						{1, TEXTURE, 0, &texture}
 			});
 	}
 
 	void cleanup() {
-		for (DescriptorSet dSet : dSetVector)
+		for (DescriptorSet *dSet : dSetVector)
 		{
-			dSet.cleanup();
+			(* dSet).cleanup();
 		}
 		texture.cleanup();
 		model.cleanup();
 	}
 
-	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage, DescriptorSet DS_global, Pipeline P1) {
+	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage, DescriptorSet DS_global, Pipeline *P1) {
 		VkBuffer vertexBuffers[] = { model.vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, model.indexBuffer, 0,
 			VK_INDEX_TYPE_UINT32);
-		for (DescriptorSet dSet : dSetVector)
+		for (DescriptorSet *dSet : dSetVector)
 		{
 			vkCmdBindDescriptorSets(commandBuffer,
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
-				P1.pipelineLayout, 1, 1, &dSet.descriptorSets[currentImage],
+				(*P1).pipelineLayout, 1, 1, &(*dSet).descriptorSets[currentImage],
 				0, nullptr);
 		}
 		vkCmdDrawIndexed(commandBuffer,
@@ -194,13 +188,68 @@ class Asset {
 	}
 };
 
-class birdBlue{
-	protected:
+class BirdBlue{
+	public:
 	DescriptorSet dSet;
+	UniformBufferObject update(UniformBufferObject ubo) {
+		ubo.model = glm::mat4(1.0f);
 
+		return ubo;
+	}
+
+	/*
+	UniformBufferObject jump(UniformBufferObject ubo) {
+		bool isJumping = false;
+		bool isDescending = false;
+		float startJump = 0.0f;
+		float deltaTime_Jump = 0.0f;
+
+		float height = 2.0f;
+		float currentHeight = 0.0f;
+
+		static glm::mat4 birdPos = glm::mat4(1.0f);
+
+		if (glfwGetKey(window, GLFW_KEY_J)) {
+			if (!isJumping) {
+				startJump = time;
+				deltaTime_Jump = 0.0f;
+				isJumping = true;
+			}
+		}
+		if (isJumping)
+		{
+			deltaTime_Jump = time - startJump;
+			if (!isDescending) {
+				currentHeight = deltaTime_Jump * 1.0f;
+				birdPos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, currentHeight, 0.0f));
+				if (currentHeight > height) {
+					startJump = time;
+					isDescending = true;
+				}
+			}
+			else
+			{
+				currentHeight = height - deltaTime_Jump * 1.0f;
+				birdPos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, currentHeight, 0.0f));
+				if (currentHeight <= 0) {
+					isJumping = false;
+					isDescending = false;
+				}
+			}
+		}
+	}
+	*/
+
+	void updateUniformBuffer(VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
+		ubo = update(ubo);
+		vkMapMemory(device, dSet.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, dSet.uniformBuffersMemory[0][currentImage]);
+	}
 };
 
-class pigStd{
+class PigStd{
 
 };
 
@@ -220,9 +269,10 @@ class MyProject : public BaseProject {
 	Pipeline P1;
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
-	Model M_blues;
-	Texture T_blues;
-	DescriptorSet DS_blues;
+
+	Asset A_BlueBird;
+	BirdBlue birdBlue1;
+
 
 	Model M_pig;
 	Texture T_pig;
@@ -269,21 +319,12 @@ class MyProject : public BaseProject {
 		
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
-		M_blues.init(this, MODEL_PATH + "/Birds/blues.obj");
-		T_blues.init(this, TEXTURE_PATH + "/texture.png");
-		DS_blues.init(this, &DSLobj, {
-		// the second parameter, is a pointer to the Uniform Set Layout of this set
-		// the last parameter is an array, with one element per binding of the set.
-		// first  elmenet : the binding number
-		// second element : UNIFORM or TEXTURE (an enum) depending on the type
-		// third  element : only for UNIFORMs, the size of the corresponding C++ object
-		// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-					{1, TEXTURE, 0, &T_blues}
-				});
+		A_BlueBird.init(this, "/Birds/blues.obj", "/texture.png", &DSLobj);
+		A_BlueBird.addDSet(this, &DSLobj, &birdBlue1.dSet);
 
 		M_pig.init(this, MODEL_PATH + "/Pigs/pig.obj");
 		T_pig.init(this, TEXTURE_PATH + "/texture.png");
+		
 		DS_pig.init(this, &DSLobj, {
 						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 						{1, TEXTURE, 0, &T_pig}
@@ -302,9 +343,8 @@ class MyProject : public BaseProject {
 
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
-		DS_blues.cleanup();
-		T_blues.cleanup();
-		M_blues.cleanup();
+
+		A_BlueBird.cleanup();
 
 		DS_pig.cleanup();
 		T_pig.cleanup();
@@ -345,24 +385,7 @@ class MyProject : public BaseProject {
 
 		// ---------------------- BIRD BLUES ------------
 
-		VkBuffer vertexBuffers_blues[] = {M_blues.vertexBuffer};
-		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
-		VkDeviceSize offsets_blues[] = {0};
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers_blues, offsets_blues);
-		// property .indexBuffer of models, contains the VkBuffer handle to its index buffer
-		vkCmdBindIndexBuffer(commandBuffer, M_blues.indexBuffer, 0,
-								VK_INDEX_TYPE_UINT32);
-
-		// property .pipelineLayout of a pipeline contains its layout.
-		// property .descriptorSets of a descriptor set contains its elements.
-		vkCmdBindDescriptorSets(commandBuffer,
-						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 1, 1, &DS_blues.descriptorSets[currentImage],
-						0, nullptr);
-						
-		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
-		vkCmdDrawIndexed(commandBuffer,
-					static_cast<uint32_t>(M_blues.indices.size()), 1, 0, 0, 0);
+		A_BlueBird.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 		// ------------------------ PIG --------------------
 
@@ -422,14 +445,7 @@ class MyProject : public BaseProject {
 
 		// ------------------------ BIRD BLUES ---------------------------
 
-
-
-		ubo.model = glm::mat4(1.0f);
-		
-		vkMapMemory(device, DS_blues.uniformBuffersMemory[0][currentImage], 0,
-							sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(device, DS_blues.uniformBuffersMemory[0][currentImage]);
+		birdBlue1.updateUniformBuffer(device, currentImage, data, ubo);
 
 		// ------------------------ PIG ---------------------------
 		ubo.model = glm::translate(glm::mat4(1.0f),glm::vec3(0.5f,0.0f,0.0f));
