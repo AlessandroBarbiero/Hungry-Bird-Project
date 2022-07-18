@@ -279,12 +279,15 @@ class PigStd :public Pig {
 };
 
 class Cannon : public GameObject {
-
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		ubo.model = glm::mat4(1.0f);
+		return ubo;
+	}
 };
 
 class Terrain : public GameObject {
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.2f, 0.2f, 0.2f));
+		ubo.model = glm::mat4(1.0f);
 		return ubo;
 	}
 };
@@ -315,6 +318,12 @@ protected:
 	Asset A_Terrain;
 	Terrain terrain;
 
+	Asset A_CannonBot;
+	Cannon cannonBot;
+
+	Asset A_CannonTop;
+	Cannon cannonTop;
+
 
 	DescriptorSet DS_global;
 
@@ -329,9 +338,9 @@ protected:
 		initialBackgroundColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 5;
-		texturesInPool = 4;
-		setsInPool = 5;
+		uniformBlocksInPool = 7;
+		texturesInPool = 6;
+		setsInPool = 7;
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -363,8 +372,14 @@ protected:
 		A_PigStd.init(this, "/Pigs/pig.obj", "/texture.png", &DSLobj);
 		A_PigStd.addDSet(this, &DSLobj, &pigStd.dSet);
 
-		A_Terrain.init(this, "/Terrain/terrain.obj", "/Terrain/terrain.png", &DSLobj);
+		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		A_Terrain.addDSet(this, &DSLobj, &terrain.dSet);
+
+		A_CannonBot.init(this, "/Cannon/BotCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
+		A_CannonBot.addDSet(this, &DSLobj, &cannonBot.dSet);
+
+		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
+		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
 
 
 		skyBox.init(this, DSLobj, DSLglobal);
@@ -385,6 +400,10 @@ protected:
 		A_PigStd.cleanup();
 
 		A_Terrain.cleanup();
+
+		A_CannonBot.cleanup();
+
+		A_CannonTop.cleanup();
 
 		skyBox.cleanup();
 
@@ -429,7 +448,12 @@ protected:
 
 		// ------------------------ Terrain -----------------
 
-		// A_Terrain.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_Terrain.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
+		 // ----------------------- Cannon -------------------
+
+		 A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 	}
 
@@ -482,6 +506,10 @@ protected:
 
 		terrain.updateUniformBuffer(window, device, currentImage, data, ubo);
 
+		// --------------------- Cannon ----------------------------
+
+		cannonBot.updateUniformBuffer(window, device, currentImage, data, ubo);
+		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
 	}
 };
 
