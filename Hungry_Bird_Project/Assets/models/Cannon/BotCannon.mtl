@@ -1,4 +1,4 @@
-# Blender MTL File: 'CannonHungry.blend'
+# Blender MTL File: 'None'
 # Material Count: 1
 
 newmtl map_CP_001.001
@@ -11,5 +11,5 @@ Ni 1.450000
 d 1.000000
 illum 3
 map_Bump E:\\Models\\Cannon\\textures\\map_CP_001.001_Normal_OpenGL.png
-map_Kd C:\\Users\\Matteo\\Downloads\\pirate-cannon (1)\\textures\\map_CP_001.001_BaseColor.png
+map_Kd C:\\Users\\Matteo\\Downloads\\pirate-cannon (1)\\textures\\map_CP_001.001_BaseColorRedBird.png
 map_Ke C:\\Users\\Matteo\\Downloads\\pirate-cannon (1)\\source\\CannonP_0001\\map_CP_001.001_Emissive.png
