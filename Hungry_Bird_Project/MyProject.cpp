@@ -278,44 +278,52 @@ class Decoration: public GameObject {
 
 class Bird :public GameObject {
 protected:
-	glm::vec3 startPos = CANNON_TOP_POS;
-	glm::vec3 birdPos = CANNON_TOP_POS;
+	glm::vec3 startPos = glm::vec3(0.0f);
+	float shootAng = 0.0f;
+	
+	glm::vec3 birdPos = glm::vec3(0.0f);
 	glm::vec3 birdAng = glm::vec3(0.0f);
+
+
 
 	const float ROT_SPEED = 60.0f;
 
 	bool isActive = false;
 
 	bool isJumping = false;
-	float startJump = 0.0f;
+	float v0;
+	float startJumpTime = 0.0f;
 	float deltaT = 0.0f;
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-
-		if (glfwGetKey(window, GLFW_KEY_J) && !isJumping) {
-			isJumping = true;
-			startJump = glfwGetTime();
-		}
-
 		if (isJumping) {
-			jump(10.0f, glm::radians(45.0f), glm::radians(birdAng.x));
+			jump(v0, -shootAng, birdAng.x);
 		}
-		if (birdPos == glm::vec3(0.0f)) {
-			std::cout << "0";
-			ubo.model = glm::translate(glm::mat4(1.0f), birdPos); //aggiunto per essere siucro che andasse all'origine
-		}
-		else
-			ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
 		return ubo;
 	}
 
 	void jump(float v0, float angY, float angX) {
-		deltaT = glfwGetTime() - startJump;
+		deltaT = glfwGetTime() - startJumpTime;
 
-		birdPos = startPos.x + (v0 * cos(angY)) * deltaT * glm::vec3(glm::rotate(glm::mat4(1.0f), angX,
-			glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1));
+		birdPos.x = startPos.x + (v0 * cos(glm::radians(angY))) * deltaT * sin(glm::radians(angX));
+		birdPos.z = startPos.z + (v0 * cos(glm::radians(angY))) * deltaT * cos(glm::radians(angX));
+		birdPos.y = -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(glm::radians(angY))) * deltaT + startPos.y;
 
-		birdPos += glm::vec3(0.0f, -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(angY)) * deltaT + startPos.y, 0.0f);
+		glm::vec3 a = glm::vec3(v0 * cos(glm::radians(angY)), -(9.8f * deltaT) + (v0 * sin(glm::radians(angY))), 0.0f);
+		glm::vec3 b = glm::vec3(1.0f, 0.0f, 0.0f);
+		glm::vec3 origin = glm::vec3(0.0f, 0.0f, 0.0f);
+
+		glm::vec3 da = glm::normalize(a - origin);
+		glm::vec3 db = glm::normalize(b - origin);
+		float newAngY = glm::degrees(glm::acos(glm::dot(da, db)));
+		if (a.y > 0) {
+			newAngY = -newAngY;
+		}
+
+		birdAng.y = newAngY;
+		
+
 		if (birdPos.y <= 0.0f) {
 			birdPos.y = 0.0f;
 			isJumping = false;
@@ -323,16 +331,26 @@ protected:
 	}
 
 	public:
-		void ShowStat(int i) {
+	void startJump(float v0, float angY, float angX) {
+		this->v0 = v0;
+		this->birdAng.x = angX;
+		this->birdAng.y = angY;
+		this->shootAng = angY;
+		this->isJumping = true;
+		this->startJumpTime = glfwGetTime();
+	}
+
+	void showStat(int i) {
 			std::cout << "----- Bird in " << i << "----- " << std::endl;
 			std::cout << "Active: " << isActive << std::endl;
 			std::cout << "Position: " << birdPos.x <<" " << birdPos.y << " " << birdPos.z << std::endl;
 			std::cout << "-----------------------------" << std::endl;
-		}
+	}
+
 	void setActive() {
-		this->isActive = true;
-		this->startPos = glm::vec3(0.0f);
-		this->birdPos = glm::vec3(0.0f);
+		isActive = true;
+		startPos = CANNON_TOP_POS;
+		birdPos = CANNON_TOP_POS;
 	}
 };
 
@@ -388,9 +406,20 @@ class CannonTop : public GameObject {
 	glm::vec3 cannonPos = CANNON_TOP_POS;
 	glm::vec3 cannonAng = glm::vec3(0.0f);
 
+	Bird *bird;
+
 	const float ROT_SPEED = 60.0f;
 
 	public: 
+	void setBird(Bird *birdToLoad) {
+		bird = birdToLoad;
+	}
+
+	void shoot() {
+		bird->startJump(10.0f, cannonAng.y, cannonAng.x);
+	}
+
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
 		if (!cameraON) {
@@ -511,7 +540,12 @@ protected:
 	void setGameState() {
 		birds.push_back(&bird1);
 		birds.push_back(&bird2);
-		//birds.push_back(&bird3);
+		birds.push_back(&bird3);
+
+
+		birdInCannon = 0;
+		birds.at(birdInCannon)->setActive();
+		cannonTop.setBird(birds.at(birdInCannon));
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -679,20 +713,12 @@ protected:
 		}
 		
 		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-			(*birds.at(1)).setActive();
-			(*birds.at(1)).ShowStat(1);
-			(*birds.at(0)).ShowStat(0);
+			cannonTop.shoot();
 		}
 
-		if (glfwGetKey(window, GLFW_KEY_L)) {
-			(*birds[1]).ShowStat(1);
-			(*birds.at(0)).ShowStat(0);
-		}
 
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
-
-		
 
 		void* data;
 
@@ -719,10 +745,7 @@ protected:
 
 		// ------------------------ BIRDS ---------------------------
 
-
-		for (Bird *bird : birds) {
-			(*bird).updateUniformBuffer(window, device, currentImage, data, ubo);
-		}
+		birds.at(birdInCannon)->updateUniformBuffer(window, device, currentImage, data, ubo);
 
 		// ------------------------ PIGS ---------------------------
 
@@ -738,6 +761,7 @@ protected:
 		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
 
 		// -------------------- DECORATION ---------------------------
+
 		baloon.updateUniformBuffer(window, device, currentImage, data, ubo);
 		seaCity25.updateUniformBuffer(window, device, currentImage, data, ubo);
 		seaCity37.updateUniformBuffer(window, device, currentImage, data, ubo);
