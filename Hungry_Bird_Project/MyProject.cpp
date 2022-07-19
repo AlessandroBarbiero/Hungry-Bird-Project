@@ -268,6 +268,14 @@ public:
 	}
 };
 
+class Decoration: public GameObject {
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		//tutto fermo
+		ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		return ubo;
+	}
+};
+
 class Bird :public GameObject {
 protected:
 	glm::vec3 startPos = CANNON_TOP_POS;
@@ -407,12 +415,6 @@ class CannonTop : public GameObject {
 	}
 };
 
-class SkyCity : public GameObject{
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::mat4(1.0f);
-		return ubo;
-	}
-};
 
 class Terrain : public GameObject {
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -458,8 +460,27 @@ protected:
 	Asset A_CannonTop;
 	CannonTop cannonTop;
 
+	//Decorations Assets and GO
+	Asset A_TowerSiege;
+	Decoration towerSiege;
+
+	Asset A_Baloon;
+	Decoration baloon;
+
+	Asset A_SeaCity25;
+	Decoration seaCity25;
+
+	Asset A_SeaCity37;
+	Decoration seaCity37;
+
+	Asset A_ShipSmall;
+	Decoration shipSmall;
+
+	Asset A_ShipVikings;
+	Decoration shipVikings;
+
 	Asset A_SkyCity;
-	SkyCity skyCity;
+	Decoration skyCity;
 
 	DescriptorSet DS_global;
 
@@ -474,9 +495,9 @@ protected:
 		initialBackgroundColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 10;
-		texturesInPool = 9;
-		setsInPool = 10;
+		uniformBlocksInPool = 20;	//10
+		texturesInPool = 20;		//9
+		setsInPool = 20;			//10
 	}
 
 	void setGameState() {
@@ -527,9 +548,26 @@ protected:
 		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
 
-		A_SkyCity.init(this, "/SkyCity/SkyCity.obj", "/SkyCity/SkyCityTexture.png", &DSLobj);
-		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
+		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
+		A_TowerSiege.addDSet(this, &DSLobj, &towerSiege.dSet);
 
+		A_Baloon.init(this, "/Decorations/Baloon.obj", "/Decorations/Baloon.png", &DSLobj);
+		A_Baloon.addDSet(this, &DSLobj, &baloon.dSet);
+
+		A_SeaCity25.init(this, "/Decorations/SeaCity25.obj", "/Decorations/SeaCity25.png", &DSLobj);
+		A_SeaCity25.addDSet(this, &DSLobj, &seaCity25.dSet);
+
+		A_SeaCity37.init(this, "/Decorations/SeaCity37.obj", "/Decorations/SeaCity37.png", &DSLobj);
+		A_SeaCity37.addDSet(this, &DSLobj, &seaCity37.dSet);
+
+		A_ShipSmall.init(this, "/Decorations/ShipSmall.obj", "/Decorations/ShipSmall.png", &DSLobj);
+		A_ShipSmall.addDSet(this, &DSLobj, &shipSmall.dSet);
+
+		A_ShipVikings.init(this, "/Decorations/ShipVikings.obj", "/Decorations/ShipVikings.png", &DSLobj);
+		A_ShipVikings.addDSet(this, &DSLobj, &shipVikings.dSet);
+
+		A_SkyCity.init(this, "/Decorations/SkyCity.obj", "/Decorations/SkyCity.png", &DSLobj);
+		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -552,6 +590,13 @@ protected:
 
 		A_CannonTop.cleanup();
 
+		//Decorations
+		A_Baloon.cleanup();
+		A_SeaCity25.cleanup();
+		A_SeaCity37.cleanup();
+		A_ShipSmall.cleanup();
+		A_ShipVikings.cleanup();
+		A_TowerSiege.cleanup();
 		A_SkyCity.cleanup();
 
 		skyBox.cleanup();
@@ -604,10 +649,15 @@ protected:
 		 A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
-		 // ----------------------- SkyCity --------------------
-
+		 // ----------------------- DECORATIONS --------------------
+		 A_Baloon.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_SeaCity25.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_SeaCity37.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_ShipSmall.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_ShipVikings.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_TowerSiege.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-
+		 
 	}
 
 	// Here is where you update the uniforms.
@@ -676,9 +726,15 @@ protected:
 		cannonBot.updateUniformBuffer(window, device, currentImage, data, ubo);
 		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
 
-		// -------------------- SkyCity ---------------------------
-
+		// -------------------- DECORATION ---------------------------
+		baloon.updateUniformBuffer(window, device, currentImage, data, ubo);
+		seaCity25.updateUniformBuffer(window, device, currentImage, data, ubo);
+		seaCity37.updateUniformBuffer(window, device, currentImage, data, ubo);
+		shipSmall.updateUniformBuffer(window, device, currentImage, data, ubo);
+		shipVikings.updateUniformBuffer(window, device, currentImage, data, ubo);
+		towerSiege.updateUniformBuffer(window, device, currentImage, data, ubo);
 		skyCity.updateUniformBuffer(window, device, currentImage, data, ubo);
+
 	}
 };
 
