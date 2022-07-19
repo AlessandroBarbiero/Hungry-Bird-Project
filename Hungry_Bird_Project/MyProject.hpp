@@ -1753,7 +1753,7 @@ void Pipeline::init(BaseProject *bp, const std::string& VertShader, const std::s
 	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 	multisampling.minSampleShading = 1.0f; // Optional
 	multisampling.pSampleMask = nullptr; // Optional
-	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+	multisampling.alphaToCoverageEnable = VK_TRUE; // Optional
 	multisampling.alphaToOneEnable = VK_FALSE; // Optional
 	
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};

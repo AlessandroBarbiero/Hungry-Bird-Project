@@ -1,0 +1,114 @@
+# Blender MTL File: 'cityJoin.blend'
+# Material Count: 10
+
+newmtl Material_413
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl Material_650
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+map_d C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl bark
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl door__barrels
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl grass
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl op_branches
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+map_d C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl planks
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl roof
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl wall
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
+
+newmtl wooden_skel_no_op
+Ns 159.999981
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\canal\\Downloads\\stylised_sky_player_home_dioroma\\textures\\texture.png
