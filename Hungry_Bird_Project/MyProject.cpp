@@ -5,6 +5,10 @@
 const std::string MODEL_PATH = "Assets/models";
 const std::string TEXTURE_PATH = "Assets/textures";
 
+bool cameraON = true;
+const glm::vec3 CANNON_BOT_POS = glm::vec3(-0.45377f, 8.78275f, -3.0006f);
+const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
+
 
 // The global buffer object used for view and proj
 struct GlobalUniformBufferObject {
@@ -16,6 +20,60 @@ struct GlobalUniformBufferObject {
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
+
+class GameTime
+{
+
+	/**
+	 * The Singleton's constructor should always be private to prevent direct
+	 * construction calls with the `new` operator.
+	 */
+
+protected:
+	GameTime()
+	{}
+
+	static GameTime* singleton_;
+	float deltaT;
+	float time;
+
+public:
+
+	GameTime(GameTime& other) = delete;
+
+	void operator=(const GameTime&) = delete;
+
+	static GameTime* GetInstance();
+
+	void setTime() {
+		static auto startTime = std::chrono::high_resolution_clock::now();
+		static float lastTime = 0.0f;
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		time = std::chrono::duration<float, std::chrono::seconds::period>
+			(currentTime - startTime).count();
+		deltaT = time - lastTime;
+		lastTime = time;
+	}
+
+	float getDelta() {
+		return deltaT;
+	}
+
+	float getTime() {
+		return time;
+	}
+
+};
+
+GameTime* GameTime::singleton_ = nullptr;;
+
+GameTime* GameTime::GetInstance()
+{
+	if (singleton_ == nullptr) {
+		singleton_ = new GameTime();
+	}
+	return singleton_;
+}
 
 class SkyBox {
 protected:
@@ -95,7 +153,8 @@ protected:
 
 public:
 	// update the camera position
-	glm::mat4 update(GLFWwindow* window, float deltaT) {
+	glm::mat4 update(GLFWwindow* window) {
+		float deltaT = GameTime::GetInstance()->getDelta();
 		// Camera movements
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
 			CamAng.y += deltaT * ROT_SPEED;
@@ -114,27 +173,29 @@ public:
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
 
-		if (glfwGetKey(window, GLFW_KEY_A)) {
-			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
-		}
-		if (glfwGetKey(window, GLFW_KEY_D)) {
-			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
-		}
-		if (glfwGetKey(window, GLFW_KEY_S)) {
-			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
-		}
-		if (glfwGetKey(window, GLFW_KEY_W)) {
-			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
-		}
-		if (glfwGetKey(window, GLFW_KEY_F)) {
-			CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
-		}
-		if (glfwGetKey(window, GLFW_KEY_R)) {
-			CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+		if (cameraON) {
+			if (glfwGetKey(window, GLFW_KEY_A)) {
+				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_D)) {
+				CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_S)) {
+				CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_W)) {
+				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_F)) {
+				CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_R)) {
+				CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+			}
 		}
 
 		return CamDir = glm::translate(glm::transpose(glm::mat4(CamEye)), -CamPos);
@@ -209,42 +270,34 @@ public:
 
 class Bird :public GameObject {
 protected:
-	glm::vec3 startPos = glm::vec3(0.0f);
-	glm::vec3 birdPos = glm::vec3(0.0f);
+	glm::vec3 startPos = CANNON_TOP_POS;
+	glm::vec3 birdPos = CANNON_TOP_POS;
 	glm::vec3 birdAng = glm::vec3(0.0f);
 
 	const float ROT_SPEED = 60.0f;
+
+	bool isActive = false;
 
 	bool isJumping = false;
 	float startJump = 0.0f;
 	float deltaT = 0.0f;
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		static auto startTime = glfwGetTime();
-		static float lastTime = 0.0f;
-		auto currentTime = glfwGetTime();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>
-			(currentTime - startTime).count();
-		float deltaT = time - lastTime;
-		lastTime = time;
 
 		if (glfwGetKey(window, GLFW_KEY_J) && !isJumping) {
 			isJumping = true;
 			startJump = glfwGetTime();
 		}
 
-		if (glfwGetKey(window, GLFW_KEY_Q) && !isJumping) {
-			birdAng.x += ROT_SPEED * deltaT;
-		}
-		if (glfwGetKey(window, GLFW_KEY_E) && !isJumping) {
-			birdAng.x -= ROT_SPEED * deltaT;
-		}
-
 		if (isJumping) {
 			jump(10.0f, glm::radians(45.0f), glm::radians(birdAng.x));
 		}
-
-		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
+		if (birdPos == glm::vec3(0.0f)) {
+			std::cout << "0";
+			ubo.model = glm::translate(glm::mat4(1.0f), birdPos); //aggiunto per essere siucro che andasse all'origine
+		}
+		else
+			ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
 		return ubo;
 	}
 
@@ -259,7 +312,19 @@ protected:
 			birdPos.y = 0.0f;
 			isJumping = false;
 		}
+	}
 
+	public:
+		void ShowStat() {
+			std::cout << "-----Bird in cannon stat-----" << std::endl;
+			std::cout << "Active: " << isActive << std::endl;
+			std::cout << "Position: " << birdPos.x <<" " << birdPos.y << " " << birdPos.z << std::endl;
+			std::cout << "-----------------------------" << std::endl;
+		}
+	void setActive() {
+		this->isActive = true;
+		this->startPos = glm::vec3(0.0f);
+		this->birdPos = glm::vec3(0.0f);
 	}
 };
 
@@ -278,7 +343,71 @@ class PigStd :public Pig {
 
 };
 
-class Cannon : public GameObject {
+
+class CannonBot : public GameObject {
+	protected:
+	glm::vec3 cannonPos = CANNON_BOT_POS;
+	glm::vec3 cannonAng = glm::vec3(0.0f);
+
+	const float ROT_SPEED = 60.0f;
+
+	public: 
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		float deltaT = GameTime::GetInstance()->getDelta();
+		if (!cameraON) {
+			if (glfwGetKey(window, GLFW_KEY_A)) {
+				cannonAng.x += ROT_SPEED * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_D)) {
+				cannonAng.x -= ROT_SPEED * deltaT;
+			}
+		}
+		ubo.model = glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos), glm::radians(cannonAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
+		return ubo;
+	}
+};
+
+class CannonTop : public GameObject {
+	protected:
+	glm::vec3 cannonPos = CANNON_TOP_POS;
+	glm::vec3 cannonAng = glm::vec3(0.0f);
+
+	const float ROT_SPEED = 60.0f;
+
+	public: 
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		float deltaT = GameTime::GetInstance()->getDelta();
+		if (!cameraON) {
+			if (glfwGetKey(window, GLFW_KEY_A)) {
+				cannonAng.x += ROT_SPEED * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_D)) {
+				cannonAng.x -= ROT_SPEED * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_S)) {
+				if (cannonAng.y < 25.5746f) {
+					cannonAng.y += ROT_SPEED * deltaT;
+				}
+				else {
+					cannonAng.y = 25.5746;
+				}
+			}
+			if (glfwGetKey(window, GLFW_KEY_W)) {
+				if (cannonAng.y > -90.0f) {
+					cannonAng.y -= ROT_SPEED * deltaT;
+				}
+				else {
+					cannonAng.y = -90.0f;
+				}
+			}
+		}
+		
+		ubo.model = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos), glm::radians(cannonAng.x), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(cannonAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
+		return ubo;
+	}
+};
+
+class SkyCity : public GameObject{
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
@@ -310,7 +439,12 @@ protected:
 	// Models, textures and Descriptors (values assigned to the uniforms)
 
 	Asset A_BlueBird;
-	BirdBlue birdBlue1;
+	BirdBlue bird1;
+	BirdBlue bird2;
+	BirdBlue bird3;
+
+	std::vector<Bird *> birds;
+	int birdInCannon = 0;
 
 	Asset A_PigStd;
 	PigStd pigStd;
@@ -319,11 +453,13 @@ protected:
 	Terrain terrain;
 
 	Asset A_CannonBot;
-	Cannon cannonBot;
+	CannonBot cannonBot;
 
 	Asset A_CannonTop;
-	Cannon cannonTop;
+	CannonTop cannonTop;
 
+	Asset A_SkyCity;
+	SkyCity skyCity;
 
 	DescriptorSet DS_global;
 
@@ -338,13 +474,22 @@ protected:
 		initialBackgroundColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 7;
-		texturesInPool = 6;
-		setsInPool = 7;
+		uniformBlocksInPool = 10;
+		texturesInPool = 9;
+		setsInPool = 10;
+	}
+
+	void setGameState() {
+		birds.push_back(&bird1);
+		//birds.push_back(&bird2);
+		//birds.push_back(&bird3);
 	}
 
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
+
+		setGameState();
+
 		// Descriptor Layouts [what will be passed to the shaders]
 		DSLobj.init(this, {
 			// this array contains the binding:
@@ -366,8 +511,9 @@ protected:
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		A_BlueBird.init(this, "/Birds/blues.obj", "/texture.png", &DSLobj);
-		A_BlueBird.addDSet(this, &DSLobj, &birdBlue1.dSet);
-
+		for (Bird *bird : birds) {
+			A_BlueBird.addDSet(this, &DSLobj, &(*bird).dSet);
+		}
 
 		A_PigStd.init(this, "/Pigs/pig.obj", "/texture.png", &DSLobj);
 		A_PigStd.addDSet(this, &DSLobj, &pigStd.dSet);
@@ -381,6 +527,9 @@ protected:
 		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
 
+		A_SkyCity.init(this, "/SkyCity/SkyCity.obj", "/SkyCity/SkyCityTexture.png", &DSLobj);
+		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
+
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -388,8 +537,6 @@ protected:
 		DS_global.init(this, &DSLglobal, {
 		{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr},
 			});
-
-
 	}
 
 	// Here you destroy all the objects you created!		
@@ -404,6 +551,8 @@ protected:
 		A_CannonBot.cleanup();
 
 		A_CannonTop.cleanup();
+
+		A_SkyCity.cleanup();
 
 		skyBox.cleanup();
 
@@ -455,25 +604,38 @@ protected:
 		 A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
+		 // ----------------------- SkyCity --------------------
+
+		 A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
 	}
 
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
-		static auto startTime = std::chrono::high_resolution_clock::now();
-		static float lastTime = 0.0f;
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>
-			(currentTime - startTime).count();
-		float deltaT = time - lastTime;
-		lastTime = time;
+
+		GameTime::GetInstance()->setTime();
+
+		if (glfwGetKey(window, GLFW_KEY_X)) {
+			cameraON = !cameraON;
+		}
+		
+		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+			(*birds.at(birdInCannon)).setActive();
+		}
+
+		if (glfwGetKey(window, GLFW_KEY_L)) {
+			(*birds[birdInCannon]).ShowStat();
+		}
 
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
 
+		
+
 		void* data;
 
-		gubo.view = camera.update(window, deltaT);
+		gubo.view = camera.update(window);
 		gubo.proj = glm::perspective(glm::radians(45.0f),
 			swapChainExtent.width / (float)swapChainExtent.height,
 			0.1f, 200.0f);
@@ -494,11 +656,14 @@ protected:
 
 		// Here is where you actually update your uniforms
 
-		// ------------------------ BIRD BLUES ---------------------------
+		// ------------------------ BIRDS ---------------------------
 
-		birdBlue1.updateUniformBuffer(window, device, currentImage, data, ubo);
 
-		// ------------------------ PIG ---------------------------
+		for (Bird *bird : birds) {
+			(*bird).updateUniformBuffer(window, device, currentImage, data, ubo);
+		}
+
+		// ------------------------ PIGS ---------------------------
 
 		pigStd.updateUniformBuffer(window, device, currentImage, data, ubo);
 
@@ -510,6 +675,10 @@ protected:
 
 		cannonBot.updateUniformBuffer(window, device, currentImage, data, ubo);
 		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
+
+		// -------------------- SkyCity ---------------------------
+
+		skyCity.updateUniformBuffer(window, device, currentImage, data, ubo);
 	}
 };
 
