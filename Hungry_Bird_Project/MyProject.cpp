@@ -292,11 +292,12 @@ protected:
 		if (isJumping) {
 			jump(10.0f, glm::radians(45.0f), glm::radians(birdAng.x));
 		}
-		if (birdPos.x = 0.0f) {
-			int a = 0;
+		if (birdPos == glm::vec3(0.0f)) {
+			std::cout << "0";
+			ubo.model = glm::translate(glm::mat4(1.0f), birdPos); //aggiunto per essere siucro che andasse all'origine
 		}
-
-		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
+		else
+			ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
 		return ubo;
 	}
 
@@ -311,14 +312,19 @@ protected:
 			birdPos.y = 0.0f;
 			isJumping = false;
 		}
-
 	}
 
 	public:
+		void ShowStat() {
+			std::cout << "-----Bird in cannon stat-----" << std::endl;
+			std::cout << "Active: " << isActive << std::endl;
+			std::cout << "Position: " << birdPos.x <<" " << birdPos.y << " " << birdPos.z << std::endl;
+			std::cout << "-----------------------------" << std::endl;
+		}
 	void setActive() {
-		isActive = true;
-		startPos = glm::vec3(0.0f);
-		birdPos = glm::vec3(0.0f);
+		this->isActive = true;
+		this->startPos = glm::vec3(0.0f);
+		this->birdPos = glm::vec3(0.0f);
 	}
 };
 
@@ -438,7 +444,7 @@ protected:
 	BirdBlue bird3;
 
 	std::vector<Bird *> birds;
-	
+	int birdInCannon = 0;
 
 	Asset A_PigStd;
 	PigStd pigStd;
@@ -475,8 +481,8 @@ protected:
 
 	void setGameState() {
 		birds.push_back(&bird1);
-		birds.push_back(&bird2);
-		birds.push_back(&bird3);
+		//birds.push_back(&bird2);
+		//birds.push_back(&bird3);
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -613,12 +619,19 @@ protected:
 		if (glfwGetKey(window, GLFW_KEY_X)) {
 			cameraON = !cameraON;
 		}
+		
 		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-			(*birds[0]).setActive();
+			(*birds.at(birdInCannon)).setActive();
+		}
+
+		if (glfwGetKey(window, GLFW_KEY_L)) {
+			(*birds[birdInCannon]).ShowStat();
 		}
 
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
+
+		
 
 		void* data;
 
