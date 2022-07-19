@@ -248,9 +248,9 @@ public:
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
 				(*P1).pipelineLayout, 1, 1, &(*dSet).descriptorSets[currentImage],
 				0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
 		}
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
 	}
 };
 
@@ -315,8 +315,8 @@ protected:
 	}
 
 	public:
-		void ShowStat() {
-			std::cout << "-----Bird in cannon stat-----" << std::endl;
+		void ShowStat(int i) {
+			std::cout << "----- Bird in " << i << "----- " << std::endl;
 			std::cout << "Active: " << isActive << std::endl;
 			std::cout << "Position: " << birdPos.x <<" " << birdPos.y << " " << birdPos.z << std::endl;
 			std::cout << "-----------------------------" << std::endl;
@@ -330,6 +330,14 @@ protected:
 
 class BirdBlue :public Bird {
 
+};
+
+class BirdYellow : public Bird {
+public:
+	BirdYellow() : Bird() {
+		startPos.x += 2.0f ;
+		birdPos.x += 2.0f;
+	}
 };
 
 class Pig :public GameObject {
@@ -440,7 +448,7 @@ protected:
 
 	Asset A_BlueBird;
 	BirdBlue bird1;
-	BirdBlue bird2;
+	BirdYellow bird2;
 	BirdBlue bird3;
 
 	std::vector<Bird *> birds;
@@ -481,7 +489,7 @@ protected:
 
 	void setGameState() {
 		birds.push_back(&bird1);
-		//birds.push_back(&bird2);
+		birds.push_back(&bird2);
 		//birds.push_back(&bird3);
 	}
 
@@ -621,11 +629,14 @@ protected:
 		}
 		
 		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-			(*birds.at(birdInCannon)).setActive();
+			(*birds.at(1)).setActive();
+			(*birds.at(1)).ShowStat(1);
+			(*birds.at(0)).ShowStat(0);
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_L)) {
-			(*birds[birdInCannon]).ShowStat();
+			(*birds[1]).ShowStat(1);
+			(*birds.at(0)).ShowStat(0);
 		}
 
 		UniformBufferObject ubo{};
