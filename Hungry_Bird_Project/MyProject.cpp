@@ -271,7 +271,7 @@ public:
 class Decoration: public GameObject {
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		//tutto fermo
-		ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // TODO: <-- perchè traslato di 1 sulle x?
 		return ubo;
 	}
 };
@@ -377,6 +377,21 @@ class PigStd :public Pig {
 
 };
 
+class WhiteSphere : public GameObject {
+	protected:
+	glm::vec3 spherePos;
+
+	public:
+	void setBlockPos(glm::vec3 pos) {
+		spherePos = pos;
+	}
+
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		//tutto fermo
+		ubo.model = glm::translate(glm::mat4(1.0f), spherePos);
+		return ubo;
+	}
+};
 
 class CannonBot : public GameObject {
 	protected:
@@ -406,7 +421,10 @@ class CannonTop : public GameObject {
 	glm::vec3 cannonPos = CANNON_TOP_POS;
 	glm::vec3 cannonAng = glm::vec3(0.0f);
 
+	float v0 = 10.0f;
+
 	Bird *bird;
+	std::vector<WhiteSphere*> *trajectory;
 
 	const float ROT_SPEED = 60.0f;
 
@@ -415,19 +433,38 @@ class CannonTop : public GameObject {
 		bird = birdToLoad;
 	}
 
-	void shoot() {
-		bird->startJump(10.0f, cannonAng.y, cannonAng.x);
+	void setTrajectory(std::vector<WhiteSphere*>* trajectoryBlocks) {
+		trajectory = trajectoryBlocks;
 	}
 
+	void shoot() {
+		bird->startJump(v0, cannonAng.y, cannonAng.x);
+	}
+
+	void computeTrajectory() {
+		float a = v0 * sin(glm::radians(-cannonAng.y));
+		float b = pow(v0, 2) * pow(sin(glm::radians(-cannonAng.y)), 2) + 2 * 9.8f * CANNON_TOP_POS.y;
+		float time = (a + sqrt(b)) / 9.8f;
+		
+		float dTime = time / trajectory->size();
+		for (int i = 0; i < trajectory->size(); i++)
+		{
+			trajectory->at(i)->setBlockPos(glm::vec3(CANNON_TOP_POS.x + (v0 * cos(glm::radians(-cannonAng.y))) * dTime * i * sin(glm::radians(cannonAng.x)),
+				-(0.5 * 9.8f * pow(dTime * i, 2)) + (v0 * sin(glm::radians(-cannonAng.y))) * dTime * i + CANNON_TOP_POS.y,
+				CANNON_TOP_POS.z + (v0 * cos(glm::radians(-cannonAng.y))) * dTime * i * cos(glm::radians(cannonAng.x))));
+		}
+	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
 		if (!cameraON) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				cannonAng.x += ROT_SPEED * deltaT;
+				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_D)) {
 				cannonAng.x -= ROT_SPEED * deltaT;
+				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_S)) {
 				if (cannonAng.y < 25.5746f) {
@@ -436,6 +473,7 @@ class CannonTop : public GameObject {
 				else {
 					cannonAng.y = 25.5746;
 				}
+				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_W)) {
 				if (cannonAng.y > -90.0f) {
@@ -444,6 +482,7 @@ class CannonTop : public GameObject {
 				else {
 					cannonAng.y = -90.0f;
 				}
+				computeTrajectory();
 			}
 		}
 		
@@ -452,6 +491,7 @@ class CannonTop : public GameObject {
 	}
 };
 
+// ----------------- Terrain
 
 class Terrain : public GameObject {
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -478,9 +518,7 @@ protected:
 	// Models, textures and Descriptors (values assigned to the uniforms)
 
 	Asset A_BlueBird;
-	BirdBlue bird1;
-	BirdYellow bird2;
-	BirdBlue bird3;
+	BirdBlue bird1, bird2, bird3;
 
 	std::vector<Bird *> birds;
 	int birdInCannon = 0;
@@ -496,6 +534,11 @@ protected:
 
 	Asset A_CannonTop;
 	CannonTop cannonTop;
+
+	Asset A_Sphere;
+	WhiteSphere sphere0, sphere1, sphere2, sphere3, sphere4, sphere5, sphere6, sphere7, sphere8, sphere9;
+	std::vector<WhiteSphere *> trajectorySpheres;
+
 
 	//Decorations Assets and GO
 	Asset A_TowerSiege;
@@ -532,20 +575,34 @@ protected:
 		initialBackgroundColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 20;	//10
-		texturesInPool = 20;		//9
-		setsInPool = 20;			//10
+		uniformBlocksInPool = 200;	//10
+		texturesInPool = 200;		//9
+		setsInPool = 200;			//10
 	}
 
 	void setGameState() {
+		// -------------- BIRDS
 		birds.push_back(&bird1);
 		birds.push_back(&bird2);
 		birds.push_back(&bird3);
 
-
 		birdInCannon = 0;
 		birds.at(birdInCannon)->setActive();
 		cannonTop.setBird(birds.at(birdInCannon));
+
+		// ------------ Trajectory
+		trajectorySpheres.push_back(&sphere0);
+		trajectorySpheres.push_back(&sphere1);
+		trajectorySpheres.push_back(&sphere2);
+		trajectorySpheres.push_back(&sphere3);
+		trajectorySpheres.push_back(&sphere4);
+		trajectorySpheres.push_back(&sphere5);
+		trajectorySpheres.push_back(&sphere6);
+		trajectorySpheres.push_back(&sphere7);
+		trajectorySpheres.push_back(&sphere8);
+		trajectorySpheres.push_back(&sphere9);
+		cannonTop.setTrajectory(&trajectorySpheres);
+		cannonTop.computeTrajectory();
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -590,6 +647,11 @@ protected:
 		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
 
+		A_Sphere.init(this, "/Cannon/Trajectory.obj", "/Cannon/Trajectory.png", &DSLobj);
+		for (WhiteSphere *block : trajectorySpheres) {
+			A_Sphere.addDSet(this, &DSLobj, &(*block).dSet);
+		}
+
 		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
 		A_TowerSiege.addDSet(this, &DSLobj, &towerSiege.dSet);
 
@@ -631,6 +693,8 @@ protected:
 		A_CannonBot.cleanup();
 
 		A_CannonTop.cleanup();
+
+		A_Sphere.cleanup();
 
 		//Decorations
 		A_Baloon.cleanup();
@@ -690,6 +754,10 @@ protected:
 
 		 A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
+		 // ----------------------- Trajectory -------------------
+
+		 A_Sphere.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 		 // ----------------------- DECORATIONS --------------------
 		 A_Baloon.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
@@ -759,6 +827,12 @@ protected:
 
 		cannonBot.updateUniformBuffer(window, device, currentImage, data, ubo);
 		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
+
+		// --------------------- Trajectory ------------------------
+
+		for (WhiteSphere* block : trajectorySpheres) {
+			block->updateUniformBuffer(window, device, currentImage, data, ubo);
+		}
 
 		// -------------------- DECORATION ---------------------------
 
