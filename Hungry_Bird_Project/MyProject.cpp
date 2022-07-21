@@ -9,6 +9,12 @@ bool cameraON = true;
 const glm::vec3 CANNON_BOT_POS = glm::vec3(-0.45377f, 8.78275f, -3.0006f);
 const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
 
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+enum GameController {
+	CameraMovement,
+	CannonMovement
+};
+GameController controller = CannonMovement;
 
 // The global buffer object used for view and proj
 struct GlobalUniformBufferObject {
@@ -148,8 +154,11 @@ protected:
 	glm::vec3 CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
 	glm::mat4 CamDir;
 
+	const int MAX_VIEW = 4;
 	const float ROT_SPEED = glm::radians(60.0f);
 	const float MOVE_SPEED = 1.75f;
+
+	int currView = 0;
 
 public:
 	// update the camera position
@@ -173,7 +182,7 @@ public:
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
 
-		if (cameraON) {
+		if (controller==CameraMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
 					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
@@ -199,6 +208,48 @@ public:
 		}
 
 		return CamDir = glm::translate(glm::transpose(glm::mat4(CamEye)), -CamPos);
+	}
+
+	void NextView() {
+		currView = (currView % MAX_VIEW) + 1;
+		ChangePositionAndAngular();
+	}
+
+	void SetView(int view) {
+		currView = view;
+		ChangePositionAndAngular();
+	}
+
+	void ShowStat() {
+		std::cout << "Valori pos: " << CamPos.x << " " << CamPos.y << " " << CamPos.z << std::endl;
+		std::cout << "Valori rot: " << CamAng.x << " " << CamAng.y << " " << CamAng.z << std::endl;
+	}
+
+	private:
+	void ChangePositionAndAngular() {
+		switch (currView)
+		{
+		case 1:
+			CamPos = glm::vec3(-0.535644f, 15.9563f, -12.8586f);
+			CamAng = glm::vec3(-0.27987f, 3.2264f, 0.0f);
+			break;
+		case 2:
+			CamPos = glm::vec3(-7.24489f, 11.9762f, -5.34424f);
+			CamAng = glm::vec3(-0.189157f, 3.90985f, 0.0f);
+			break;
+		case 3:
+			CamPos = glm::vec3(2.14082f, 10.2845f, -6.47336f);
+			CamAng = glm::vec3(-0.0441803f, 2.72603f, 0.0f);
+			break;
+		case 4:
+			CamPos = glm::vec3(28.9848f, 27.9113f, -3.16643f);
+			CamAng = glm::vec3(-0.459889f, 2.18553f, 0.0f);
+			break;
+		default:
+			CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
+			CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
+			break;
+		}
 	}
 
 };
@@ -403,7 +454,7 @@ class CannonBot : public GameObject {
 	public: 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		if (!cameraON) {
+		if (controller==CannonMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				cannonAng.x += ROT_SPEED * deltaT;
 			}
@@ -428,7 +479,7 @@ class CannonTop : public GameObject {
 
 	const float ROT_SPEED = 60.0f;
 
-	public: 
+	public:
 	void setBird(Bird *birdToLoad) {
 		bird = birdToLoad;
 	}
@@ -457,7 +508,7 @@ class CannonTop : public GameObject {
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		if (!cameraON) {
+		if (controller==CannonMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				cannonAng.x += ROT_SPEED * deltaT;
 				computeTrajectory();
@@ -485,10 +536,9 @@ class CannonTop : public GameObject {
 				computeTrajectory();
 			}
 		}
-		
 		ubo.model = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos), glm::radians(cannonAng.x), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(cannonAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
 		return ubo;
-	}
+	}	
 };
 
 // ----------------- Terrain
@@ -500,6 +550,9 @@ class Terrain : public GameObject {
 	}
 };
 
+
+CannonTop *cTop;
+Camera* cCamera;
 // MAIN ! 
 class MyProject : public BaseProject {
 protected:
@@ -581,6 +634,14 @@ protected:
 	}
 
 	void setGameState() {
+		//set up callback for input
+		cTop = &cannonTop;
+		cCamera = &camera;
+
+		glfwSetKeyCallback(window, keyCallback);
+
+		cCamera->NextView();
+
 		// -------------- BIRDS
 		birds.push_back(&bird1);
 		birds.push_back(&bird2);
@@ -776,14 +837,6 @@ protected:
 
 		GameTime::GetInstance()->setTime();
 
-		if (glfwGetKey(window, GLFW_KEY_X)) {
-			cameraON = !cameraON;
-		}
-		
-		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-			cannonTop.shoot();
-		}
-
 
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
@@ -845,7 +898,51 @@ protected:
 		skyCity.updateUniformBuffer(window, device, currentImage, data, ubo);
 
 	}
+
+
 };
+
+
+//calbacks inputs
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	
+	if (key == GLFW_KEY_X && action == GLFW_PRESS)
+	{
+		cameraON = !cameraON;
+		if (controller == CameraMovement) {
+			controller = CannonMovement;
+		}
+		else {
+			controller = CameraMovement;
+		}
+	}
+	if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
+		cCamera->NextView();
+	}
+	//to debg the position of the camera if we want to add new view
+	if (key == GLFW_KEY_L && action == GLFW_PRESS) {
+		cCamera->ShowStat();
+	}
+	if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
+		cCamera->SetView(1);
+	}
+	if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+		cCamera->SetView(3);
+	}
+	if (key == GLFW_KEY_3 && action == GLFW_PRESS) {
+		cCamera->SetView(2);
+	}
+	if (key == GLFW_KEY_4 && action == GLFW_PRESS) {
+		cCamera->SetView(4);
+	}
+	if (controller == CannonMovement) {
+		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+			cTop->shoot();
+		}
+	}
+}
+
 
 // This is the main: probably you do not need to touch this!
 int main() {
