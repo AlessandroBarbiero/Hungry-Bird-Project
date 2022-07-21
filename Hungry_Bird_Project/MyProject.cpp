@@ -427,6 +427,7 @@ class CannonTop : public GameObject {
 	std::vector<WhiteSphere*> *trajectory;
 
 	const float ROT_SPEED = 60.0f;
+	const float POWER = 10.0f;
 
 	public: 
 	void setBird(Bird *birdToLoad) {
@@ -482,6 +483,19 @@ class CannonTop : public GameObject {
 				else {
 					cannonAng.y = -90.0f;
 				}
+				computeTrajectory();
+			}
+			if (glfwGetKey(window, GLFW_KEY_Q)) {
+				if (v0 > 0) {
+					v0 -= POWER * deltaT;
+				}
+				else {
+					v0 = 0;
+				}
+				computeTrajectory();
+			}
+			if (glfwGetKey(window, GLFW_KEY_E)) {
+				v0 += POWER * deltaT;
 				computeTrajectory();
 			}
 		}
