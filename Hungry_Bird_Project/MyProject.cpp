@@ -503,10 +503,6 @@ public:
 	}
 };
 
-class PigStd :public Pig {
-
-};
-
 class WhiteSphere : public GameObject {
 	protected:
 	glm::vec3 spherePos;
@@ -670,7 +666,10 @@ protected:
 	int birdInCannon = 0;
 
 	Asset A_PigStd;
-	PigStd pigStd;
+	Pig pigStd;
+
+	Asset A_PigHelmet;
+	Pig pigBaloon;
 
 	Asset A_Terrain;
 	Terrain terrain;
@@ -762,9 +761,14 @@ protected:
 
 	void loadHitBoxes() {
 		pigsHitBox.push_back(&pigStd);
+		pigsHitBox.push_back(&pigBaloon);
 
-		pigStd.setHitBox(MODEL_PATH + "/Pigs/pigHitBox.obj");
+
+		pigStd.setHitBox(MODEL_PATH + "/PigCustom/PigStandardHB.obj");
 		pigStd.loadHitBox();
+
+		pigBaloon.setHitBox(MODEL_PATH + "/PigCustom/PigHelmetHB.obj");
+		pigBaloon.loadHitBox();
 
 		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
 		bird1.loadHitBox();
@@ -802,8 +806,11 @@ protected:
 			A_BlueBird.addDSet(this, &DSLobj, &(*bird).dSet);
 		}
 
-		A_PigStd.init(this, "/Pigs/pig.obj", "/texture.png", &DSLobj);
+		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
 		A_PigStd.addDSet(this, &DSLobj, &pigStd.dSet);
+
+		A_PigHelmet.init(this, "/PigCustom/PigHelmet.obj", "/texture.png", &DSLobj);
+		A_PigHelmet.addDSet(this, &DSLobj, &pigBaloon.dSet);
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		A_Terrain.addDSet(this, &DSLobj, &terrain.dSet);
@@ -854,6 +861,8 @@ protected:
 		A_BlueBird.cleanup();
 
 		A_PigStd.cleanup();
+
+		A_PigHelmet.cleanup();
 
 		A_Terrain.cleanup();
 
@@ -912,6 +921,8 @@ protected:
 		// ------------------------ PIG --------------------
 
 		A_PigStd.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
+		A_PigHelmet.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 		// ------------------------ Terrain -----------------
 
@@ -1000,6 +1011,7 @@ protected:
 		// ------------------------ PIGS ---------------------------
 
 		pigStd.updateUniformBuffer(window, device, currentImage, data, ubo);
+		pigBaloon.updateUniformBuffer(window, device, currentImage, data, ubo);
 
 		//----------------------- TERRAIN --------------------------
 
