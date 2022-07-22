@@ -1,16 +1,19 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "MyProject.hpp"
+#include <list>
 
 const std::string MODEL_PATH = "Assets/models";
 const std::string TEXTURE_PATH = "Assets/textures";
 const std::string HITBOXDEC_PATH = "Assets/models/HitBoxDecorations";
 
 bool cameraON = true;
+
 const glm::vec3 CANNON_BOT_POS = glm::vec3(-0.45377f, 8.78275f, -3.0006f);
 const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
 enum GameController {
 	CameraMovement,
 	CannonMovement
@@ -71,9 +74,7 @@ public:
 	}
 
 };
-
-GameTime* GameTime::singleton_ = nullptr;;
-
+GameTime* GameTime::singleton_ = nullptr;
 GameTime* GameTime::GetInstance()
 {
 	if (singleton_ == nullptr) {
@@ -81,6 +82,65 @@ GameTime* GameTime::GetInstance()
 	}
 	return singleton_;
 }
+
+//Observer class, it can observe the game master to activate its functions when onScene
+class GameObject {
+public:
+	DescriptorSet dSet;
+
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0;
+
+	void updateUniformBuffer(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
+		ubo = update(window, ubo);
+		vkMapMemory(device, dSet.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, dSet.uniformBuffersMemory[0][currentImage]);
+	}
+};
+
+//Observable Singleton class that update each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
+class GameMaster
+{
+protected:
+	GameMaster()
+	{}
+
+	static GameMaster* singleton_;
+	std::list<GameObject*> onScene_;
+
+public:
+
+	//Remove public methods for construction and modify of singleton
+	GameMaster(GameMaster& other) = delete;
+	void operator=(const GameMaster&) = delete;
+
+	static GameMaster* GetInstance();
+
+	void Attach(GameObject* observer) {
+		onScene_.push_back(observer);
+	}
+
+	void Detach(GameObject* observer) {
+		onScene_.remove(observer);
+	}
+
+	void Notify(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
+		for (auto const& obj : onScene_) {
+			obj->updateUniformBuffer(window, device, currentImage, data, ubo);
+		}
+	}
+
+};
+GameMaster* GameMaster::singleton_ = nullptr;
+GameMaster* GameMaster::GetInstance()
+{
+	if (singleton_ == nullptr) {
+		singleton_ = new GameMaster();
+	}
+	return singleton_;
+}
+
+
 
 class SkyBox {
 protected:
@@ -162,10 +222,10 @@ protected:
 	int currView = 0;
 
 public:
-	// update the camera position
+	// update the camera position and direction
 	glm::mat4 update(GLFWwindow* window) {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		// Camera movements
+		// Camera direction
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
 			CamAng.y += deltaT * ROT_SPEED;
 		}
@@ -183,6 +243,7 @@ public:
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
 
+		// Camera position
 		if (controller==CameraMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
@@ -255,6 +316,7 @@ public:
 
 };
 
+//Each object drawn on the screen need an Asset 
 class Asset {
 protected:
 	Model model;
@@ -303,20 +365,6 @@ public:
 			vkCmdDrawIndexed(commandBuffer,
 				static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
 		}
-	}
-};
-
-class GameObject {
-public:
-	DescriptorSet dSet;
-
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0;
-
-	void updateUniformBuffer(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
-		ubo = update(window, ubo);
-		vkMapMemory(device, dSet.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(device, dSet.uniformBuffersMemory[0][currentImage]);
 	}
 };
 
@@ -926,6 +974,7 @@ protected:
 		A_BlueBird.init(this, "/Birds/blues.obj", "/texture.png", &DSLobj);
 		for (Bird *bird : birds) {
 			A_BlueBird.addDSet(this, &DSLobj, &(*bird).dSet);
+			GameMaster::GetInstance()->Attach(bird);
 		}
 
 		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
@@ -1163,6 +1212,7 @@ protected:
 
 
 		// Here is where you actually update your uniforms
+		GameMaster::GetInstance()->Notify(window, device, currentImage, data, ubo);
 
 		// ------------------------ BIRDS ---------------------------
 
