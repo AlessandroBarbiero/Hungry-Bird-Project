@@ -320,6 +320,61 @@ public:
 };
 
 class Decoration: public GameObject {
+	std::vector<std::string> HitBoxObjs;
+	std::vector <std::vector<float> [3]> hitBoxes;
+
+public:
+	void setHitBoxes(std::vector<std::string> HitBoxPaths) {
+		for (std::string path : HitBoxPaths)
+		{
+			HitBoxObjs.push_back(path);
+		}
+		loadHitBoxes();
+	}
+
+	void loadHitBoxes() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		for (std::string HitBox : HitBoxObjs)
+		{
+			if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+				HitBox.c_str())) {
+				throw std::runtime_error(warn + err);
+			}
+
+			std::set<float> x, y, z;
+
+			for (int i = 0; i < attrib.vertices.size(); i = i + 3)
+			{
+				x.insert(attrib.vertices[i + 0]);
+				y.insert(attrib.vertices[i + 1]);
+				z.insert(attrib.vertices[i + 2]);
+			}
+
+			std::vector<float> hitBox[3];
+
+			hitBox[0] = std::vector<float>(x.begin(), x.end());
+			hitBox[1] = std::vector<float>(y.begin(), y.end());
+			hitBox[2] = std::vector<float>(z.begin(), z.end());
+
+			hitBoxes.push_back(hitBox);
+		}
+	}
+
+	std::vector <std::vector<glm::vec2>> getHitBox() {
+		std::vector <std::vector<glm::vec2>> boxes;
+		for (auto box : hitBoxes) {
+			std::vector<glm::vec2> objHit;
+			objHit.push_back(glm::vec2(box[0][0], box[0][1]));
+			objHit.push_back(glm::vec2(box[1][0], box[1][1]));
+			objHit.push_back(glm::vec2(box[2][0], box[2][1]));
+			boxes.push_back(objHit);
+		}
+		return boxes;
+	}
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
@@ -484,8 +539,6 @@ public:
 		hitBox[0] = std::vector<float>(x.begin(), x.end());
 		hitBox[1] = std::vector<float>(y.begin(), y.end());
 		hitBox[2] = std::vector<float>(z.begin(), z.end());
-
-		std::cout << "pig hit box loaded";
 	}
 
 	std::vector<glm::vec2> getHitBox() {
@@ -710,7 +763,7 @@ protected:
 	DescriptorSet DS_global;
 
 	std::vector<Pig*> pigsHitBox;
-	std::vector<Decoration*> mapHitBox;
+	std::vector<Decoration*> decorHitBox;
 
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -968,7 +1021,23 @@ protected:
 			}
 		}
 
-		//TODO add collider terrain
+		for (Decoration *decor : decorHitBox)
+		{
+			std::vector <std::vector<glm::vec2>> decorHitBoxes = decor->getHitBox();
+			for (std::vector<glm::vec2> HitBox : decorHitBoxes) {
+				if ((birdHitBox[0][0] > HitBox[0][0] && birdHitBox[0][0] < HitBox[0][1]) || (birdHitBox[0][1] > HitBox[0][0] && birdHitBox[0][1] < HitBox[0][1]))
+					x = true;
+				if ((birdHitBox[1][0] > HitBox[1][0] && birdHitBox[1][0] < HitBox[1][1]) || (birdHitBox[1][1] > HitBox[1][0] && birdHitBox[1][1] < HitBox[1][1]))
+					y = true;
+				if ((birdHitBox[2][0] > HitBox[2][0] && birdHitBox[2][0] < HitBox[2][1]) || (birdHitBox[2][1] > HitBox[2][0] && birdHitBox[2][1] < HitBox[2][1]))
+					z = true;
+
+				if (x && y && z) {
+					std::cout << "TERRAIN PIG\n";
+				}
+			}
+
+		}
 	}
 
 	// Here is where you update the uniforms.
