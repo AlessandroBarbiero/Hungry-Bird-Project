@@ -98,7 +98,7 @@ public:
 	}
 };
 
-//Observable Singleton class that update each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
+//Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
 class GameMaster
 {
 protected:
@@ -974,61 +974,78 @@ protected:
 		A_BlueBird.init(this, "/Birds/blues.obj", "/texture.png", &DSLobj);
 		for (Bird *bird : birds) {
 			A_BlueBird.addDSet(this, &DSLobj, &(*bird).dSet);
-			GameMaster::GetInstance()->Attach(bird);
 		}
+		GameMaster::GetInstance()->Attach(birds.at(birdInCannon));
 
 		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
 		A_PigStd.addDSet(this, &DSLobj, &pigStd.dSet);
+		GameMaster::GetInstance()->Attach(&pigStd);
 
 		A_PigHelmet.init(this, "/PigCustom/PigHelmet.obj", "/texture.png", &DSLobj);
 		A_PigHelmet.addDSet(this, &DSLobj, &pigBaloon.dSet);
+		GameMaster::GetInstance()->Attach(&pigBaloon);
 
 		A_PigKingHouse.init(this, "/PigCustom/PigKingHouse.obj", "/texture.png", &DSLobj);
 		A_PigKingHouse.addDSet(this, &DSLobj, &pigHouse.dSet);
+		GameMaster::GetInstance()->Attach(&pigHouse);
 
 		A_PigKingShip.init(this, "/PigCustom/PigKingBoat.obj", "/texture.png", &DSLobj);
 		A_PigKingShip.addDSet(this, &DSLobj, &pigShip.dSet);
+		GameMaster::GetInstance()->Attach(&pigShip);
 
 		A_PigMechanics.init(this, "/PigCustom/PigMechanic.obj", "/texture.png", &DSLobj);
 		A_PigMechanics.addDSet(this, &DSLobj, &pigShipMini.dSet);
+		GameMaster::GetInstance()->Attach(&pigShipMini);
 
 		A_PigStache.init(this, "/PigCustom/PigStache.obj", "/texture.png", &DSLobj);
 		A_PigStache.addDSet(this, &DSLobj, &pigCitySky.dSet);
+		GameMaster::GetInstance()->Attach(&pigCitySky);
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		A_Terrain.addDSet(this, &DSLobj, &terrain.dSet);
+		GameMaster::GetInstance()->Attach(&terrain);
 
 		A_CannonBot.init(this, "/Cannon/BotCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		A_CannonBot.addDSet(this, &DSLobj, &cannonBot.dSet);
+		GameMaster::GetInstance()->Attach(&cannonBot);
 
 		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
+		GameMaster::GetInstance()->Attach(&cannonTop);
 
 		A_Sphere.init(this, "/Cannon/Trajectory.obj", "/Cannon/Trajectory.png", &DSLobj);
 		for (WhiteSphere *block : trajectorySpheres) {
 			A_Sphere.addDSet(this, &DSLobj, &(*block).dSet);
+			GameMaster::GetInstance()->Attach(block);
 		}
 
 		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
 		A_TowerSiege.addDSet(this, &DSLobj, &towerSiege.dSet);
+		GameMaster::GetInstance()->Attach(&towerSiege);
 
 		A_Baloon.init(this, "/Decorations/Baloon.obj", "/Decorations/Baloon.png", &DSLobj);
 		A_Baloon.addDSet(this, &DSLobj, &baloon.dSet);
+		GameMaster::GetInstance()->Attach(&baloon);
 
 		A_SeaCity25.init(this, "/Decorations/SeaCity25.obj", "/Decorations/SeaCity25.png", &DSLobj);
 		A_SeaCity25.addDSet(this, &DSLobj, &seaCity25.dSet);
+		GameMaster::GetInstance()->Attach(&seaCity25);
 
 		A_SeaCity37.init(this, "/Decorations/SeaCity37.obj", "/Decorations/SeaCity37.png", &DSLobj);
 		A_SeaCity37.addDSet(this, &DSLobj, &seaCity37.dSet);
+		GameMaster::GetInstance()->Attach(&seaCity37);
 
 		A_ShipSmall.init(this, "/Decorations/ShipSmall.obj", "/Decorations/ShipSmall.png", &DSLobj);
 		A_ShipSmall.addDSet(this, &DSLobj, &shipSmall.dSet);
+		GameMaster::GetInstance()->Attach(&shipSmall);
 
 		A_ShipVikings.init(this, "/Decorations/ShipVikings.obj", "/Decorations/ShipVikings.png", &DSLobj);
 		A_ShipVikings.addDSet(this, &DSLobj, &shipVikings.dSet);
+		GameMaster::GetInstance()->Attach(&shipVikings);
 
 		A_SkyCity.init(this, "/Decorations/SkyCity.obj", "/Decorations/SkyCity.png", &DSLobj);
 		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
+		GameMaster::GetInstance()->Attach(&skyCity);
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -1210,47 +1227,8 @@ protected:
 
 		skyBox.updateUniformBuffer(device, currentImage, data, ubo);
 
-
 		// Here is where you actually update your uniforms
 		GameMaster::GetInstance()->Notify(window, device, currentImage, data, ubo);
-
-		// ------------------------ BIRDS ---------------------------
-
-		birds.at(birdInCannon)->updateUniformBuffer(window, device, currentImage, data, ubo);
-
-		// ------------------------ PIGS ---------------------------
-
-		pigStd.updateUniformBuffer(window, device, currentImage, data, ubo);
-		pigBaloon.updateUniformBuffer(window, device, currentImage, data, ubo);
-		pigHouse.updateUniformBuffer(window, device, currentImage, data, ubo);
-		pigShip.updateUniformBuffer(window, device, currentImage, data, ubo);
-		pigCitySky.updateUniformBuffer(window, device, currentImage, data, ubo);
-		pigShipMini.updateUniformBuffer(window, device, currentImage, data, ubo);
-
-		//----------------------- TERRAIN --------------------------
-
-		terrain.updateUniformBuffer(window, device, currentImage, data, ubo);
-
-		// --------------------- Cannon ----------------------------
-
-		cannonBot.updateUniformBuffer(window, device, currentImage, data, ubo);
-		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
-
-		// --------------------- Trajectory ------------------------
-
-		for (WhiteSphere* block : trajectorySpheres) {
-			block->updateUniformBuffer(window, device, currentImage, data, ubo);
-		}
-
-		// -------------------- DECORATION ---------------------------
-
-		baloon.updateUniformBuffer(window, device, currentImage, data, ubo);
-		seaCity25.updateUniformBuffer(window, device, currentImage, data, ubo);
-		seaCity37.updateUniformBuffer(window, device, currentImage, data, ubo);
-		shipSmall.updateUniformBuffer(window, device, currentImage, data, ubo);
-		shipVikings.updateUniformBuffer(window, device, currentImage, data, ubo);
-		towerSiege.updateUniformBuffer(window, device, currentImage, data, ubo);
-		skyCity.updateUniformBuffer(window, device, currentImage, data, ubo);
 
 
 		// ------------------------------ COLLISION
