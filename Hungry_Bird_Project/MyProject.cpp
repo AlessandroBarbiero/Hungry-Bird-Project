@@ -4,6 +4,7 @@
 
 const std::string MODEL_PATH = "Assets/models";
 const std::string TEXTURE_PATH = "Assets/textures";
+const std::string HITBOXDEC_PATH = "Assets/models/HitBoxDecorations";
 
 bool cameraON = true;
 const glm::vec3 CANNON_BOT_POS = glm::vec3(-0.45377f, 8.78275f, -3.0006f);
@@ -321,7 +322,7 @@ public:
 
 class Decoration: public GameObject {
 	std::vector<std::string> HitBoxObjs;
-	std::vector <std::vector<float> [3]> hitBoxes;
+	std::vector < std::array<std::vector<float>,3>> hitBoxes;
 
 public:
 	void setHitBoxes(std::vector<std::string> HitBoxPaths) {
@@ -354,13 +355,15 @@ public:
 				z.insert(attrib.vertices[i + 2]);
 			}
 
-			std::vector<float> hitBox[3];
+			std::array<std::vector<float>,3>hitBox;
 
 			hitBox[0] = std::vector<float>(x.begin(), x.end());
 			hitBox[1] = std::vector<float>(y.begin(), y.end());
 			hitBox[2] = std::vector<float>(z.begin(), z.end());
 
 			hitBoxes.push_back(hitBox);
+
+			std::cout << "loaded hit terrain\n";
 		}
 	}
 
@@ -683,15 +686,6 @@ class CannonTop : public GameObject {
 	}	
 };
 
-// ----------------- Terrain
-
-class Terrain : public GameObject {
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::mat4(1.0f);
-		return ubo;
-	}
-};
-
 
 CannonTop *cTop;
 Camera* cCamera;
@@ -724,9 +718,6 @@ protected:
 	Asset A_PigHelmet;
 	Pig pigBaloon;
 
-	Asset A_Terrain;
-	Terrain terrain;
-
 	Asset A_CannonBot;
 	CannonBot cannonBot;
 
@@ -739,6 +730,9 @@ protected:
 
 
 	//Decorations Assets and GO
+	Asset A_Terrain;
+	Decoration terrain;
+
 	Asset A_TowerSiege;
 	Decoration towerSiege;
 
@@ -816,7 +810,6 @@ protected:
 		pigsHitBox.push_back(&pigStd);
 		pigsHitBox.push_back(&pigBaloon);
 
-
 		pigStd.setHitBox(MODEL_PATH + "/PigCustom/PigStandardHB.obj");
 		pigStd.loadHitBox();
 
@@ -825,6 +818,17 @@ protected:
 
 		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
 		bird1.loadHitBox();
+
+		// --------------------- MAP
+		decorHitBox.push_back(&terrain);
+
+		std::vector<std::string> terrainHitBoxes;
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Sea.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock1.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock2.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Grass.obj");
+		terrain.setHitBoxes(terrainHitBoxes);
+
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -1021,10 +1025,13 @@ protected:
 			}
 		}
 
+
+
 		for (Decoration *decor : decorHitBox)
 		{
 			std::vector <std::vector<glm::vec2>> decorHitBoxes = decor->getHitBox();
 			for (std::vector<glm::vec2> HitBox : decorHitBoxes) {
+				x = false; y = false; z = false;
 				if ((birdHitBox[0][0] > HitBox[0][0] && birdHitBox[0][0] < HitBox[0][1]) || (birdHitBox[0][1] > HitBox[0][0] && birdHitBox[0][1] < HitBox[0][1]))
 					x = true;
 				if ((birdHitBox[1][0] > HitBox[1][0] && birdHitBox[1][0] < HitBox[1][1]) || (birdHitBox[1][1] > HitBox[1][0] && birdHitBox[1][1] < HitBox[1][1]))
@@ -1033,7 +1040,7 @@ protected:
 					z = true;
 
 				if (x && y && z) {
-					std::cout << "TERRAIN PIG\n";
+					std::cout << "TERRAIN HIT\n";
 				}
 			}
 
