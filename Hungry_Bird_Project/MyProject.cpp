@@ -258,7 +258,7 @@ class GameObject {
 public:
 	DescriptorSet dSet;
 
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0; //must return ubo
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0;
 
 	void updateUniformBuffer(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
 		ubo = update(window, ubo);
@@ -270,8 +270,7 @@ public:
 
 class Decoration: public GameObject {
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		//tutto fermo
-		ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // TODO: <-- perchè traslato di 1 sulle x?
+		ubo.model = glm::mat4(1.0f);
 		return ubo;
 	}
 };
@@ -283,8 +282,6 @@ protected:
 	
 	glm::vec3 birdPos = glm::vec3(0.0f);
 	glm::vec3 birdAng = glm::vec3(0.0f);
-
-
 
 	const float ROT_SPEED = 60.0f;
 
@@ -331,6 +328,9 @@ protected:
 	}
 
 	public:
+		std::string HitBoxObj;
+		std::vector<float> hitBox[3];
+
 	void startJump(float v0, float angY, float angX) {
 		this->v0 = v0;
 		this->birdAng.x = angX;
@@ -352,6 +352,45 @@ protected:
 		startPos = CANNON_TOP_POS;
 		birdPos = CANNON_TOP_POS;
 	}
+
+	void setHitBox(std::string HitBoxPath) {
+		HitBoxObj = HitBoxPath;
+	}
+
+	void loadHitBox() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+			HitBoxObj.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+
+		std::set<float> x, y, z;
+
+		for (int i = 0; i < attrib.vertices.size(); i = i + 3)
+		{
+			x.insert(attrib.vertices[i + 0]);
+			y.insert(attrib.vertices[i + 1]);
+			z.insert(attrib.vertices[i + 2]);
+		}
+
+		hitBox[0] = std::vector<float>(x.begin(), x.end());
+		hitBox[1] = std::vector<float>(y.begin(), y.end());
+		hitBox[2] = std::vector<float>(z.begin(), z.end());
+
+		std::cout << "bird hit box loaded";
+	}
+
+	std::vector<glm::vec2> getHitBox() {
+		std::vector<glm::vec2> box;
+		box.push_back(glm::vec2(birdPos.x - abs(hitBox[0][0]), birdPos.x + abs(hitBox[0][1])));
+		box.push_back(glm::vec2(birdPos.y - abs(hitBox[1][0]), birdPos.y + abs(hitBox[1][1])));
+		box.push_back(glm::vec2(birdPos.z - abs(hitBox[2][0]), birdPos.z + abs(hitBox[2][1])));
+		return box;
+	}
 };
 
 class BirdBlue :public Bird {
@@ -359,16 +398,56 @@ class BirdBlue :public Bird {
 };
 
 class BirdYellow : public Bird {
-public:
-	BirdYellow() : Bird() {
-		startPos.x += 2.0f ;
-		birdPos.x += 2.0f;
-	}
 };
 
 class Pig :public GameObject {
+
+public:
+	std::string HitBoxObj;
+	std::vector<float> hitBox[3];
+
+	void setHitBox(std::string HitBoxPath) {
+		HitBoxObj = HitBoxPath;
+	}
+
+	void loadHitBox() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+			HitBoxObj.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+
+		std::set<float> x, y, z;
+
+		for (int i = 0; i < attrib.vertices.size(); i = i+3)
+		{
+			x.insert(attrib.vertices[i + 0]);
+			y.insert(attrib.vertices[i + 1]);
+			z.insert(attrib.vertices[i + 2]);
+		}
+
+		hitBox[0] = std::vector<float>(x.begin(), x.end());
+		hitBox[1] = std::vector<float>(y.begin(), y.end());
+		hitBox[2] = std::vector<float>(z.begin(), z.end());
+
+		std::cout << "pig hit box loaded";
+	}
+
+	std::vector<glm::vec2> getHitBox() {
+		std::vector<glm::vec2> box;
+		box.push_back(glm::vec2(hitBox[0][0], hitBox[0][1]));
+		box.push_back(glm::vec2(hitBox[1][0], hitBox[1][1]));
+		box.push_back(glm::vec2(hitBox[2][0], hitBox[2][1]));
+		return box;
+	}
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+		ubo.model = glm::mat4(1.0f);
 		return ubo;
 	}
 };
@@ -619,10 +698,20 @@ protected:
 		cannonTop.computeTrajectory();
 	}
 
+	void loadHitBoxes() {
+		pigStd.setHitBox(MODEL_PATH + "/Pigs/pigHitBox.obj");
+		pigStd.loadHitBox();
+
+		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+		bird1.loadHitBox();
+	}
+
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
 
 		setGameState();
+
+		loadHitBoxes();
 
 		// Descriptor Layouts [what will be passed to the shaders]
 		DSLobj.init(this, {
@@ -784,6 +873,22 @@ protected:
 		 
 	}
 
+	void handleCollision(std::vector<glm::vec2> birdHitBox, std::vector<glm::vec2> pigHitBox)
+	{
+		bool inX = false, inY = false, inZ = false;
+		if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
+			inX = true;
+		if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
+			inY = true;
+		if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
+			inZ = true;
+
+		if (inX && inY && inZ)
+			std::cout << "HIT\n";
+		else
+			std::cout << "MISS\n";
+	}
+
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
@@ -858,6 +963,9 @@ protected:
 		towerSiege.updateUniformBuffer(window, device, currentImage, data, ubo);
 		skyCity.updateUniformBuffer(window, device, currentImage, data, ubo);
 
+
+		// ------------------------------ COLLISION
+		handleCollision(bird1.getHitBox(), pigStd.getHitBox());
 	}
 };
 
