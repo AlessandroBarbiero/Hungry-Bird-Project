@@ -710,7 +710,8 @@ protected:
 
 	DescriptorSet DS_global;
 
-
+	std::vector<Pig*> pigsHitBox;
+	std::vector<Decoration*> mapHitBox;
 
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -760,6 +761,8 @@ protected:
 	}
 
 	void loadHitBoxes() {
+		pigsHitBox.push_back(&pigStd);
+
 		pigStd.setHitBox(MODEL_PATH + "/Pigs/pigHitBox.obj");
 		pigStd.loadHitBox();
 
@@ -934,20 +937,27 @@ protected:
 		 
 	}
 
-	void handleCollision(std::vector<glm::vec2> birdHitBox, std::vector<glm::vec2> pigHitBox)
+	void handleCollision()
 	{
-		bool inX = false, inY = false, inZ = false;
-		if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
-			inX = true;
-		if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
-			inY = true;
-		if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
-			inZ = true;
+		std::vector<glm::vec2> birdHitBox = bird1.getHitBox();
+		bool x = false, y = false, z = false;
 
-		if (inX && inY && inZ)
-			std::cout << "HIT\n";
-		else
-			std::cout << "MISS\n";
+		for (Pig *pig : pigsHitBox) {
+			std::vector<glm::vec2> pigHitBox = pig->getHitBox();
+
+			if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
+				x = true;
+			if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
+				y = true;
+			if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
+				z = true;
+
+			if (x && y && z) {
+				std::cout << "HIT PIG\n";
+			}
+		}
+
+		//TODO add collider terrain
 	}
 
 	// Here is where you update the uniforms.
@@ -1018,7 +1028,7 @@ protected:
 
 
 		// ------------------------------ COLLISION
-		handleCollision(bird1.getHitBox(), pigStd.getHitBox());
+		handleCollision();
 	}
 
 
