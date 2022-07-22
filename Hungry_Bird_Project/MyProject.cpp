@@ -9,6 +9,12 @@ bool cameraON = true;
 const glm::vec3 CANNON_BOT_POS = glm::vec3(-0.45377f, 8.78275f, -3.0006f);
 const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
 
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+enum GameController {
+	CameraMovement,
+	CannonMovement
+};
+GameController controller = CannonMovement;
 
 // The global buffer object used for view and proj
 struct GlobalUniformBufferObject {
@@ -148,8 +154,11 @@ protected:
 	glm::vec3 CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
 	glm::mat4 CamDir;
 
+	const int MAX_VIEW = 4;
 	const float ROT_SPEED = glm::radians(60.0f);
 	const float MOVE_SPEED = 1.75f;
+
+	int currView = 0;
 
 public:
 	// update the camera position
@@ -173,7 +182,7 @@ public:
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
 			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
 
-		if (cameraON) {
+		if (controller==CameraMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
 					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
@@ -199,6 +208,48 @@ public:
 		}
 
 		return CamDir = glm::translate(glm::transpose(glm::mat4(CamEye)), -CamPos);
+	}
+
+	void NextView() {
+		currView = (currView % MAX_VIEW) + 1;
+		ChangePositionAndAngular();
+	}
+
+	void SetView(int view) {
+		currView = view;
+		ChangePositionAndAngular();
+	}
+
+	void ShowStat() {
+		std::cout << "Valori pos: " << CamPos.x << " " << CamPos.y << " " << CamPos.z << std::endl;
+		std::cout << "Valori rot: " << CamAng.x << " " << CamAng.y << " " << CamAng.z << std::endl;
+	}
+
+	private:
+	void ChangePositionAndAngular() {
+		switch (currView)
+		{
+		case 1:
+			CamPos = glm::vec3(-0.535644f, 15.9563f, -12.8586f);
+			CamAng = glm::vec3(-0.27987f, 3.2264f, 0.0f);
+			break;
+		case 2:
+			CamPos = glm::vec3(-7.24489f, 11.9762f, -5.34424f);
+			CamAng = glm::vec3(-0.189157f, 3.90985f, 0.0f);
+			break;
+		case 3:
+			CamPos = glm::vec3(2.14082f, 10.2845f, -6.47336f);
+			CamAng = glm::vec3(-0.0441803f, 2.72603f, 0.0f);
+			break;
+		case 4:
+			CamPos = glm::vec3(28.9848f, 27.9113f, -3.16643f);
+			CamAng = glm::vec3(-0.459889f, 2.18553f, 0.0f);
+			break;
+		default:
+			CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
+			CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
+			break;
+		}
 	}
 
 };
@@ -248,9 +299,9 @@ public:
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
 				(*P1).pipelineLayout, 1, 1, &(*dSet).descriptorSets[currentImage],
 				0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
 		}
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
 	}
 };
 
@@ -258,7 +309,7 @@ class GameObject {
 public:
 	DescriptorSet dSet;
 
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0; //must return ubo
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0;
 
 	void updateUniformBuffer(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
 		ubo = update(window, ubo);
@@ -268,10 +319,19 @@ public:
 	}
 };
 
+class Decoration: public GameObject {
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		ubo.model = glm::mat4(1.0f);
+		return ubo;
+	}
+};
+
 class Bird :public GameObject {
 protected:
-	glm::vec3 startPos = CANNON_TOP_POS;
-	glm::vec3 birdPos = CANNON_TOP_POS;
+	glm::vec3 startPos = glm::vec3(0.0f);
+	float shootAng = 0.0f;
+	
+	glm::vec3 birdPos = glm::vec3(0.0f);
 	glm::vec3 birdAng = glm::vec3(0.0f);
 
 	const float ROT_SPEED = 60.0f;
@@ -279,35 +339,39 @@ protected:
 	bool isActive = false;
 
 	bool isJumping = false;
-	float startJump = 0.0f;
+	float v0;
+	float startJumpTime = 0.0f;
 	float deltaT = 0.0f;
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-
-		if (glfwGetKey(window, GLFW_KEY_J) && !isJumping) {
-			isJumping = true;
-			startJump = glfwGetTime();
-		}
-
 		if (isJumping) {
-			jump(10.0f, glm::radians(45.0f), glm::radians(birdAng.x));
+			jump(v0, -shootAng, birdAng.x);
 		}
-		if (birdPos == glm::vec3(0.0f)) {
-			std::cout << "0";
-			ubo.model = glm::translate(glm::mat4(1.0f), birdPos); //aggiunto per essere siucro che andasse all'origine
-		}
-		else
-			ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
 		return ubo;
 	}
 
 	void jump(float v0, float angY, float angX) {
-		deltaT = glfwGetTime() - startJump;
+		deltaT = glfwGetTime() - startJumpTime;
 
-		birdPos = startPos.x + (v0 * cos(angY)) * deltaT * glm::vec3(glm::rotate(glm::mat4(1.0f), angX,
-			glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1));
+		birdPos.x = startPos.x + (v0 * cos(glm::radians(angY))) * deltaT * sin(glm::radians(angX));
+		birdPos.z = startPos.z + (v0 * cos(glm::radians(angY))) * deltaT * cos(glm::radians(angX));
+		birdPos.y = -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(glm::radians(angY))) * deltaT + startPos.y;
 
-		birdPos += glm::vec3(0.0f, -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(angY)) * deltaT + startPos.y, 0.0f);
+		glm::vec3 a = glm::vec3(v0 * cos(glm::radians(angY)), -(9.8f * deltaT) + (v0 * sin(glm::radians(angY))), 0.0f);
+		glm::vec3 b = glm::vec3(1.0f, 0.0f, 0.0f);
+		glm::vec3 origin = glm::vec3(0.0f, 0.0f, 0.0f);
+
+		glm::vec3 da = glm::normalize(a - origin);
+		glm::vec3 db = glm::normalize(b - origin);
+		float newAngY = glm::degrees(glm::acos(glm::dot(da, db)));
+		if (a.y > 0) {
+			newAngY = -newAngY;
+		}
+
+		birdAng.y = newAngY;
+		
+
 		if (birdPos.y <= 0.0f) {
 			birdPos.y = 0.0f;
 			isJumping = false;
@@ -315,16 +379,68 @@ protected:
 	}
 
 	public:
-		void ShowStat() {
-			std::cout << "-----Bird in cannon stat-----" << std::endl;
+		std::string HitBoxObj;
+		std::vector<float> hitBox[3];
+
+	void startJump(float v0, float angY, float angX) {
+		this->v0 = v0;
+		this->birdAng.x = angX;
+		this->birdAng.y = angY;
+		this->shootAng = angY;
+		this->isJumping = true;
+		this->startJumpTime = glfwGetTime();
+	}
+
+	void showStat(int i) {
+			std::cout << "----- Bird in " << i << "----- " << std::endl;
 			std::cout << "Active: " << isActive << std::endl;
 			std::cout << "Position: " << birdPos.x <<" " << birdPos.y << " " << birdPos.z << std::endl;
 			std::cout << "-----------------------------" << std::endl;
-		}
+	}
+
 	void setActive() {
-		this->isActive = true;
-		this->startPos = glm::vec3(0.0f);
-		this->birdPos = glm::vec3(0.0f);
+		isActive = true;
+		startPos = CANNON_TOP_POS;
+		birdPos = CANNON_TOP_POS;
+	}
+
+	void setHitBox(std::string HitBoxPath) {
+		HitBoxObj = HitBoxPath;
+	}
+
+	void loadHitBox() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+			HitBoxObj.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+
+		std::set<float> x, y, z;
+
+		for (int i = 0; i < attrib.vertices.size(); i = i + 3)
+		{
+			x.insert(attrib.vertices[i + 0]);
+			y.insert(attrib.vertices[i + 1]);
+			z.insert(attrib.vertices[i + 2]);
+		}
+
+		hitBox[0] = std::vector<float>(x.begin(), x.end());
+		hitBox[1] = std::vector<float>(y.begin(), y.end());
+		hitBox[2] = std::vector<float>(z.begin(), z.end());
+
+		std::cout << "bird hit box loaded";
+	}
+
+	std::vector<glm::vec2> getHitBox() {
+		std::vector<glm::vec2> box;
+		box.push_back(glm::vec2(birdPos.x - abs(hitBox[0][0]), birdPos.x + abs(hitBox[0][1])));
+		box.push_back(glm::vec2(birdPos.y - abs(hitBox[1][0]), birdPos.y + abs(hitBox[1][1])));
+		box.push_back(glm::vec2(birdPos.z - abs(hitBox[2][0]), birdPos.z + abs(hitBox[2][1])));
+		return box;
 	}
 };
 
@@ -332,9 +448,57 @@ class BirdBlue :public Bird {
 
 };
 
+class BirdYellow : public Bird {
+};
+
 class Pig :public GameObject {
+
+public:
+	std::string HitBoxObj;
+	std::vector<float> hitBox[3];
+
+	void setHitBox(std::string HitBoxPath) {
+		HitBoxObj = HitBoxPath;
+	}
+
+	void loadHitBox() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+			HitBoxObj.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+
+		std::set<float> x, y, z;
+
+		for (int i = 0; i < attrib.vertices.size(); i = i+3)
+		{
+			x.insert(attrib.vertices[i + 0]);
+			y.insert(attrib.vertices[i + 1]);
+			z.insert(attrib.vertices[i + 2]);
+		}
+
+		hitBox[0] = std::vector<float>(x.begin(), x.end());
+		hitBox[1] = std::vector<float>(y.begin(), y.end());
+		hitBox[2] = std::vector<float>(z.begin(), z.end());
+
+		std::cout << "pig hit box loaded";
+	}
+
+	std::vector<glm::vec2> getHitBox() {
+		std::vector<glm::vec2> box;
+		box.push_back(glm::vec2(hitBox[0][0], hitBox[0][1]));
+		box.push_back(glm::vec2(hitBox[1][0], hitBox[1][1]));
+		box.push_back(glm::vec2(hitBox[2][0], hitBox[2][1]));
+		return box;
+	}
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+		ubo.model = glm::mat4(1.0f);
 		return ubo;
 	}
 };
@@ -343,6 +507,21 @@ class PigStd :public Pig {
 
 };
 
+class WhiteSphere : public GameObject {
+	protected:
+	glm::vec3 spherePos;
+
+	public:
+	void setBlockPos(glm::vec3 pos) {
+		spherePos = pos;
+	}
+
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		//tutto fermo
+		ubo.model = glm::translate(glm::mat4(1.0f), spherePos);
+		return ubo;
+	}
+};
 
 class CannonBot : public GameObject {
 	protected:
@@ -354,7 +533,7 @@ class CannonBot : public GameObject {
 	public: 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		if (!cameraON) {
+		if (controller==CannonMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				cannonAng.x += ROT_SPEED * deltaT;
 			}
@@ -372,17 +551,51 @@ class CannonTop : public GameObject {
 	glm::vec3 cannonPos = CANNON_TOP_POS;
 	glm::vec3 cannonAng = glm::vec3(0.0f);
 
-	const float ROT_SPEED = 60.0f;
+	float v0 = 10.0f;
 
-	public: 
+	Bird *bird;
+	std::vector<WhiteSphere*> *trajectory;
+
+	const float ROT_SPEED = 60.0f;
+	const float POWER = 10.0f;
+
+	public:
+	void setBird(Bird *birdToLoad) {
+		bird = birdToLoad;
+	}
+
+	void setTrajectory(std::vector<WhiteSphere*>* trajectoryBlocks) {
+		trajectory = trajectoryBlocks;
+	}
+
+	void shoot() {
+		bird->startJump(v0, cannonAng.y, cannonAng.x);
+	}
+
+	void computeTrajectory() {
+		float a = v0 * sin(glm::radians(-cannonAng.y));
+		float b = pow(v0, 2) * pow(sin(glm::radians(-cannonAng.y)), 2) + 2 * 9.8f * CANNON_TOP_POS.y;
+		float time = (a + sqrt(b)) / 9.8f;
+		
+		float dTime = time / trajectory->size();
+		for (int i = 0; i < trajectory->size(); i++)
+		{
+			trajectory->at(i)->setBlockPos(glm::vec3(CANNON_TOP_POS.x + (v0 * cos(glm::radians(-cannonAng.y))) * dTime * i * sin(glm::radians(cannonAng.x)),
+				-(0.5 * 9.8f * pow(dTime * i, 2)) + (v0 * sin(glm::radians(-cannonAng.y))) * dTime * i + CANNON_TOP_POS.y,
+				CANNON_TOP_POS.z + (v0 * cos(glm::radians(-cannonAng.y))) * dTime * i * cos(glm::radians(cannonAng.x))));
+		}
+	}
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		if (!cameraON) {
+		if (controller==CannonMovement) {
 			if (glfwGetKey(window, GLFW_KEY_A)) {
 				cannonAng.x += ROT_SPEED * deltaT;
+				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_D)) {
 				cannonAng.x -= ROT_SPEED * deltaT;
+				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_S)) {
 				if (cannonAng.y < 25.5746f) {
@@ -391,6 +604,7 @@ class CannonTop : public GameObject {
 				else {
 					cannonAng.y = 25.5746;
 				}
+				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_W)) {
 				if (cannonAng.y > -90.0f) {
@@ -399,20 +613,28 @@ class CannonTop : public GameObject {
 				else {
 					cannonAng.y = -90.0f;
 				}
+				computeTrajectory();
+			}
+			if (glfwGetKey(window, GLFW_KEY_Q)) {
+				if (v0 > 0) {
+					v0 -= POWER * deltaT;
+				}
+				else {
+					v0 = 0;
+				}
+				computeTrajectory();
+			}
+			if (glfwGetKey(window, GLFW_KEY_E)) {
+				v0 += POWER * deltaT;
+				computeTrajectory();
 			}
 		}
-		
 		ubo.model = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos), glm::radians(cannonAng.x), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(cannonAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
 		return ubo;
-	}
+	}	
 };
 
-class SkyCity : public GameObject{
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::mat4(1.0f);
-		return ubo;
-	}
-};
+// ----------------- Terrain
 
 class Terrain : public GameObject {
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -421,6 +643,9 @@ class Terrain : public GameObject {
 	}
 };
 
+
+CannonTop *cTop;
+Camera* cCamera;
 // MAIN ! 
 class MyProject : public BaseProject {
 protected:
@@ -439,9 +664,7 @@ protected:
 	// Models, textures and Descriptors (values assigned to the uniforms)
 
 	Asset A_BlueBird;
-	BirdBlue bird1;
-	BirdBlue bird2;
-	BirdBlue bird3;
+	BirdBlue bird1, bird2, bird3;
 
 	std::vector<Bird *> birds;
 	int birdInCannon = 0;
@@ -458,12 +681,37 @@ protected:
 	Asset A_CannonTop;
 	CannonTop cannonTop;
 
+	Asset A_Sphere;
+	WhiteSphere sphere0, sphere1, sphere2, sphere3, sphere4, sphere5, sphere6, sphere7, sphere8, sphere9;
+	std::vector<WhiteSphere *> trajectorySpheres;
+
+
+	//Decorations Assets and GO
+	Asset A_TowerSiege;
+	Decoration towerSiege;
+
+	Asset A_Baloon;
+	Decoration baloon;
+
+	Asset A_SeaCity25;
+	Decoration seaCity25;
+
+	Asset A_SeaCity37;
+	Decoration seaCity37;
+
+	Asset A_ShipSmall;
+	Decoration shipSmall;
+
+	Asset A_ShipVikings;
+	Decoration shipVikings;
+
 	Asset A_SkyCity;
-	SkyCity skyCity;
+	Decoration skyCity;
 
 	DescriptorSet DS_global;
 
-
+	std::vector<Pig*> pigsHitBox;
+	std::vector<Decoration*> mapHitBox;
 
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -474,21 +722,60 @@ protected:
 		initialBackgroundColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 10;
-		texturesInPool = 9;
-		setsInPool = 10;
+		uniformBlocksInPool = 200;	//10
+		texturesInPool = 200;		//9
+		setsInPool = 200;			//10
 	}
 
 	void setGameState() {
+		//set up callback for input
+		cTop = &cannonTop;
+		cCamera = &camera;
+
+		glfwSetKeyCallback(window, keyCallback);
+
+		cCamera->NextView();
+
+		// -------------- BIRDS
 		birds.push_back(&bird1);
-		//birds.push_back(&bird2);
-		//birds.push_back(&bird3);
+		birds.push_back(&bird2);
+		birds.push_back(&bird3);
+
+		birdInCannon = 0;
+		birds.at(birdInCannon)->setActive();
+		cannonTop.setBird(birds.at(birdInCannon));
+
+		// ------------ Trajectory
+		trajectorySpheres.push_back(&sphere0);
+		trajectorySpheres.push_back(&sphere1);
+		trajectorySpheres.push_back(&sphere2);
+		trajectorySpheres.push_back(&sphere3);
+		trajectorySpheres.push_back(&sphere4);
+		trajectorySpheres.push_back(&sphere5);
+		trajectorySpheres.push_back(&sphere6);
+		trajectorySpheres.push_back(&sphere7);
+		trajectorySpheres.push_back(&sphere8);
+		trajectorySpheres.push_back(&sphere9);
+		cannonTop.setTrajectory(&trajectorySpheres);
+		cannonTop.computeTrajectory();
+	}
+
+	void loadHitBoxes() {
+		pigsHitBox.push_back(&pigStd);
+
+		pigStd.setHitBox(MODEL_PATH + "/Pigs/pigHitBox.obj");
+		pigStd.loadHitBox();
+
+		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+		bird1.loadHitBox();
 	}
 
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
 
 		setGameState();
+
+		loadHitBoxes();
 
 		// Descriptor Layouts [what will be passed to the shaders]
 		DSLobj.init(this, {
@@ -527,9 +814,31 @@ protected:
 		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
 
-		A_SkyCity.init(this, "/SkyCity/SkyCity.obj", "/SkyCity/SkyCityTexture.png", &DSLobj);
-		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
+		A_Sphere.init(this, "/Cannon/Trajectory.obj", "/Cannon/Trajectory.png", &DSLobj);
+		for (WhiteSphere *block : trajectorySpheres) {
+			A_Sphere.addDSet(this, &DSLobj, &(*block).dSet);
+		}
 
+		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
+		A_TowerSiege.addDSet(this, &DSLobj, &towerSiege.dSet);
+
+		A_Baloon.init(this, "/Decorations/Baloon.obj", "/Decorations/Baloon.png", &DSLobj);
+		A_Baloon.addDSet(this, &DSLobj, &baloon.dSet);
+
+		A_SeaCity25.init(this, "/Decorations/SeaCity25.obj", "/Decorations/SeaCity25.png", &DSLobj);
+		A_SeaCity25.addDSet(this, &DSLobj, &seaCity25.dSet);
+
+		A_SeaCity37.init(this, "/Decorations/SeaCity37.obj", "/Decorations/SeaCity37.png", &DSLobj);
+		A_SeaCity37.addDSet(this, &DSLobj, &seaCity37.dSet);
+
+		A_ShipSmall.init(this, "/Decorations/ShipSmall.obj", "/Decorations/ShipSmall.png", &DSLobj);
+		A_ShipSmall.addDSet(this, &DSLobj, &shipSmall.dSet);
+
+		A_ShipVikings.init(this, "/Decorations/ShipVikings.obj", "/Decorations/ShipVikings.png", &DSLobj);
+		A_ShipVikings.addDSet(this, &DSLobj, &shipVikings.dSet);
+
+		A_SkyCity.init(this, "/Decorations/SkyCity.obj", "/Decorations/SkyCity.png", &DSLobj);
+		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -552,6 +861,15 @@ protected:
 
 		A_CannonTop.cleanup();
 
+		A_Sphere.cleanup();
+
+		//Decorations
+		A_Baloon.cleanup();
+		A_SeaCity25.cleanup();
+		A_SeaCity37.cleanup();
+		A_ShipSmall.cleanup();
+		A_ShipVikings.cleanup();
+		A_TowerSiege.cleanup();
 		A_SkyCity.cleanup();
 
 		skyBox.cleanup();
@@ -604,10 +922,42 @@ protected:
 		 A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
-		 // ----------------------- SkyCity --------------------
+		 // ----------------------- Trajectory -------------------
 
+		 A_Sphere.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
+		 // ----------------------- DECORATIONS --------------------
+		 A_Baloon.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_SeaCity25.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_SeaCity37.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_ShipSmall.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_ShipVikings.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_TowerSiege.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 
+	}
 
+	void handleCollision()
+	{
+		std::vector<glm::vec2> birdHitBox = bird1.getHitBox();
+		bool x = false, y = false, z = false;
+
+		for (Pig *pig : pigsHitBox) {
+			std::vector<glm::vec2> pigHitBox = pig->getHitBox();
+
+			if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
+				x = true;
+			if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
+				y = true;
+			if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
+				z = true;
+
+			if (x && y && z) {
+				std::cout << "HIT PIG\n";
+			}
+		}
+
+		//TODO add collider terrain
 	}
 
 	// Here is where you update the uniforms.
@@ -616,22 +966,9 @@ protected:
 
 		GameTime::GetInstance()->setTime();
 
-		if (glfwGetKey(window, GLFW_KEY_X)) {
-			cameraON = !cameraON;
-		}
-		
-		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-			(*birds.at(birdInCannon)).setActive();
-		}
-
-		if (glfwGetKey(window, GLFW_KEY_L)) {
-			(*birds[birdInCannon]).ShowStat();
-		}
 
 		UniformBufferObject ubo{};
 		GlobalUniformBufferObject gubo{};
-
-		
 
 		void* data;
 
@@ -658,10 +995,7 @@ protected:
 
 		// ------------------------ BIRDS ---------------------------
 
-
-		for (Bird *bird : birds) {
-			(*bird).updateUniformBuffer(window, device, currentImage, data, ubo);
-		}
+		birds.at(birdInCannon)->updateUniformBuffer(window, device, currentImage, data, ubo);
 
 		// ------------------------ PIGS ---------------------------
 
@@ -676,11 +1010,71 @@ protected:
 		cannonBot.updateUniformBuffer(window, device, currentImage, data, ubo);
 		cannonTop.updateUniformBuffer(window, device, currentImage, data, ubo);
 
-		// -------------------- SkyCity ---------------------------
+		// --------------------- Trajectory ------------------------
 
+		for (WhiteSphere* block : trajectorySpheres) {
+			block->updateUniformBuffer(window, device, currentImage, data, ubo);
+		}
+
+		// -------------------- DECORATION ---------------------------
+
+		baloon.updateUniformBuffer(window, device, currentImage, data, ubo);
+		seaCity25.updateUniformBuffer(window, device, currentImage, data, ubo);
+		seaCity37.updateUniformBuffer(window, device, currentImage, data, ubo);
+		shipSmall.updateUniformBuffer(window, device, currentImage, data, ubo);
+		shipVikings.updateUniformBuffer(window, device, currentImage, data, ubo);
+		towerSiege.updateUniformBuffer(window, device, currentImage, data, ubo);
 		skyCity.updateUniformBuffer(window, device, currentImage, data, ubo);
+
+
+		// ------------------------------ COLLISION
+		handleCollision();
 	}
+
+
 };
+
+
+//calbacks inputs
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	
+	if (key == GLFW_KEY_X && action == GLFW_PRESS)
+	{
+		cameraON = !cameraON;
+		if (controller == CameraMovement) {
+			controller = CannonMovement;
+		}
+		else {
+			controller = CameraMovement;
+		}
+	}
+	if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
+		cCamera->NextView();
+	}
+	//to debg the position of the camera if we want to add new view
+	if (key == GLFW_KEY_L && action == GLFW_PRESS) {
+		cCamera->ShowStat();
+	}
+	if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
+		cCamera->SetView(1);
+	}
+	if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+		cCamera->SetView(3);
+	}
+	if (key == GLFW_KEY_3 && action == GLFW_PRESS) {
+		cCamera->SetView(2);
+	}
+	if (key == GLFW_KEY_4 && action == GLFW_PRESS) {
+		cCamera->SetView(4);
+	}
+	if (controller == CannonMovement) {
+		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+			cTop->shoot();
+		}
+	}
+}
+
 
 // This is the main: probably you do not need to touch this!
 int main() {
