@@ -5,6 +5,7 @@
 
 const std::string MODEL_PATH = "Assets/models";
 const std::string TEXTURE_PATH = "Assets/textures";
+const std::string HITBOXDEC_PATH = "Assets/models/HitBoxDecorations";
 
 bool cameraON = true;
 
@@ -368,6 +369,63 @@ public:
 };
 
 class Decoration: public GameObject {
+	std::vector<std::string> HitBoxObjs;
+	std::vector < std::array<std::vector<float>,3>> hitBoxes;
+
+public:
+	void setHitBoxes(std::vector<std::string> HitBoxPaths) {
+		for (std::string path : HitBoxPaths)
+		{
+			HitBoxObjs.push_back(path);
+		}
+		loadHitBoxes();
+	}
+
+	void loadHitBoxes() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		for (std::string HitBox : HitBoxObjs)
+		{
+			if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+				HitBox.c_str())) {
+				throw std::runtime_error(warn + err);
+			}
+
+			std::set<float> x, y, z;
+
+			for (int i = 0; i < attrib.vertices.size(); i = i + 3)
+			{
+				x.insert(attrib.vertices[i + 0]);
+				y.insert(attrib.vertices[i + 1]);
+				z.insert(attrib.vertices[i + 2]);
+			}
+
+			std::array<std::vector<float>,3>hitBox;
+
+			hitBox[0] = std::vector<float>(x.begin(), x.end());
+			hitBox[1] = std::vector<float>(y.begin(), y.end());
+			hitBox[2] = std::vector<float>(z.begin(), z.end());
+
+			hitBoxes.push_back(hitBox);
+
+			std::cout << "loaded hit terrain\n";
+		}
+	}
+
+	std::vector <std::vector<glm::vec2>> getHitBox() {
+		std::vector <std::vector<glm::vec2>> boxes;
+		for (auto box : hitBoxes) {
+			std::vector<glm::vec2> objHit;
+			objHit.push_back(glm::vec2(box[0][0], box[0][1]));
+			objHit.push_back(glm::vec2(box[1][0], box[1][1]));
+			objHit.push_back(glm::vec2(box[2][0], box[2][1]));
+			boxes.push_back(objHit);
+		}
+		return boxes;
+	}
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
@@ -532,8 +590,6 @@ public:
 		hitBox[0] = std::vector<float>(x.begin(), x.end());
 		hitBox[1] = std::vector<float>(y.begin(), y.end());
 		hitBox[2] = std::vector<float>(z.begin(), z.end());
-
-		std::cout << "pig hit box loaded";
 	}
 
 	std::vector<glm::vec2> getHitBox() {
@@ -549,10 +605,6 @@ public:
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
 	}
-};
-
-class PigStd :public Pig {
-
 };
 
 class WhiteSphere : public GameObject {
@@ -682,15 +734,6 @@ class CannonTop : public GameObject {
 	}	
 };
 
-// ----------------- Terrain
-
-class Terrain : public GameObject {
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		ubo.model = glm::mat4(1.0f);
-		return ubo;
-	}
-};
-
 
 CannonTop *cTop;
 Camera* cCamera;
@@ -718,10 +761,10 @@ protected:
 	int birdInCannon = 0;
 
 	Asset A_PigStd;
-	PigStd pigStd;
+	Pig pigStd;
 
-	Asset A_Terrain;
-	Terrain terrain;
+	Asset A_PigHelmet;
+	Pig pigBaloon;
 
 	Asset A_CannonBot;
 	CannonBot cannonBot;
@@ -735,6 +778,9 @@ protected:
 
 
 	//Decorations Assets and GO
+	Asset A_Terrain;
+	Decoration terrain;
+
 	Asset A_TowerSiege;
 	Decoration towerSiege;
 
@@ -758,7 +804,8 @@ protected:
 
 	DescriptorSet DS_global;
 
-
+	std::vector<Pig*> pigsHitBox;
+	std::vector<Decoration*> decorHitBox;
 
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -808,11 +855,28 @@ protected:
 	}
 
 	void loadHitBoxes() {
-		pigStd.setHitBox(MODEL_PATH + "/Pigs/pigHitBox.obj");
+		pigsHitBox.push_back(&pigStd);
+		pigsHitBox.push_back(&pigBaloon);
+
+		pigStd.setHitBox(MODEL_PATH + "/PigCustom/PigStandardHB.obj");
 		pigStd.loadHitBox();
+
+		pigBaloon.setHitBox(MODEL_PATH + "/PigCustom/PigHelmetHB.obj");
+		pigBaloon.loadHitBox();
 
 		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
 		bird1.loadHitBox();
+
+		// --------------------- MAP
+		decorHitBox.push_back(&terrain);
+
+		std::vector<std::string> terrainHitBoxes;
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Sea.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock1.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock2.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Grass.obj");
+		terrain.setHitBoxes(terrainHitBoxes);
+
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -848,8 +912,11 @@ protected:
 			GameMaster::GetInstance()->Attach(bird);
 		}
 
-		A_PigStd.init(this, "/Pigs/pig.obj", "/texture.png", &DSLobj);
+		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
 		A_PigStd.addDSet(this, &DSLobj, &pigStd.dSet);
+
+		A_PigHelmet.init(this, "/PigCustom/PigHelmet.obj", "/texture.png", &DSLobj);
+		A_PigHelmet.addDSet(this, &DSLobj, &pigBaloon.dSet);
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		A_Terrain.addDSet(this, &DSLobj, &terrain.dSet);
@@ -900,6 +967,8 @@ protected:
 		A_BlueBird.cleanup();
 
 		A_PigStd.cleanup();
+
+		A_PigHelmet.cleanup();
 
 		A_Terrain.cleanup();
 
@@ -959,6 +1028,8 @@ protected:
 
 		A_PigStd.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
+		A_PigHelmet.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
 		// ------------------------ Terrain -----------------
 
 		 A_Terrain.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
@@ -983,20 +1054,46 @@ protected:
 		 
 	}
 
-	void handleCollision(std::vector<glm::vec2> birdHitBox, std::vector<glm::vec2> pigHitBox)
+	void handleCollision()
 	{
-		bool inX = false, inY = false, inZ = false;
-		if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
-			inX = true;
-		if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
-			inY = true;
-		if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
-			inZ = true;
+		std::vector<glm::vec2> birdHitBox = bird1.getHitBox();
+		bool x = false, y = false, z = false;
 
-		if (inX && inY && inZ)
-			std::cout << "HIT\n";
-		else
-			std::cout << "MISS\n";
+		for (Pig *pig : pigsHitBox) {
+			std::vector<glm::vec2> pigHitBox = pig->getHitBox();
+
+			if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
+				x = true;
+			if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
+				y = true;
+			if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
+				z = true;
+
+			if (x && y && z) {
+				std::cout << "HIT PIG\n";
+			}
+		}
+
+
+
+		for (Decoration *decor : decorHitBox)
+		{
+			std::vector <std::vector<glm::vec2>> decorHitBoxes = decor->getHitBox();
+			for (std::vector<glm::vec2> HitBox : decorHitBoxes) {
+				x = false; y = false; z = false;
+				if ((birdHitBox[0][0] > HitBox[0][0] && birdHitBox[0][0] < HitBox[0][1]) || (birdHitBox[0][1] > HitBox[0][0] && birdHitBox[0][1] < HitBox[0][1]))
+					x = true;
+				if ((birdHitBox[1][0] > HitBox[1][0] && birdHitBox[1][0] < HitBox[1][1]) || (birdHitBox[1][1] > HitBox[1][0] && birdHitBox[1][1] < HitBox[1][1]))
+					y = true;
+				if ((birdHitBox[2][0] > HitBox[2][0] && birdHitBox[2][0] < HitBox[2][1]) || (birdHitBox[2][1] > HitBox[2][0] && birdHitBox[2][1] < HitBox[2][1]))
+					z = true;
+
+				if (x && y && z) {
+					std::cout << "TERRAIN HIT\n";
+				}
+			}
+
+		}
 	}
 
 	// Here is where you update the uniforms.
@@ -1040,6 +1137,7 @@ protected:
 		// ------------------------ PIGS ---------------------------
 
 		pigStd.updateUniformBuffer(window, device, currentImage, data, ubo);
+		pigBaloon.updateUniformBuffer(window, device, currentImage, data, ubo);
 
 		//----------------------- TERRAIN --------------------------
 
@@ -1068,7 +1166,7 @@ protected:
 
 
 		// ------------------------------ COLLISION
-		handleCollision(bird1.getHitBox(), pigStd.getHitBox());
+		handleCollision();
 	}
 
 
