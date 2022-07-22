@@ -464,6 +464,7 @@ protected:
 
 	void setHitBox(std::string HitBoxPath) {
 		HitBoxObj = HitBoxPath;
+		loadHitBox();
 	}
 
 	void loadHitBox() {
@@ -515,8 +516,11 @@ public:
 	std::string HitBoxObj;
 	std::vector<float> hitBox[3];
 
+
+
 	void setHitBox(std::string HitBoxPath) {
 		HitBoxObj = HitBoxPath;
+		loadHitBox();
 	}
 
 	void loadHitBox() {
@@ -553,7 +557,6 @@ public:
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
 	}
@@ -712,12 +715,26 @@ protected:
 	std::vector<Bird *> birds;
 	int birdInCannon = 0;
 
+	//--------------PIGS
 	Asset A_PigStd;
 	Pig pigStd;
 
 	Asset A_PigHelmet;
 	Pig pigBaloon;
 
+	Asset A_PigKingHouse;
+	Pig pigHouse;
+	
+	Asset A_PigKingShip;
+	Pig pigShip;
+
+	Asset A_PigStache;
+	Pig pigCitySky;
+
+	Asset A_PigMechanics;
+	Pig pigShipMini;
+
+	//------OTHERS
 	Asset A_CannonBot;
 	CannonBot cannonBot;
 
@@ -809,15 +826,24 @@ protected:
 	void loadHitBoxes() {
 		pigsHitBox.push_back(&pigStd);
 		pigsHitBox.push_back(&pigBaloon);
+		pigsHitBox.push_back(&pigHouse);
+		pigsHitBox.push_back(&pigShip);
+		pigsHitBox.push_back(&pigCitySky);
+		pigsHitBox.push_back(&pigShipMini);
 
 		pigStd.setHitBox(MODEL_PATH + "/PigCustom/PigStandardHB.obj");
-		pigStd.loadHitBox();
 
 		pigBaloon.setHitBox(MODEL_PATH + "/PigCustom/PigHelmetHB.obj");
-		pigBaloon.loadHitBox();
+
+		pigHouse.setHitBox(MODEL_PATH + "/PigCustom/PigKingHouseHB.obj");
+
+		pigShip.setHitBox(MODEL_PATH + "/PigCustom/PigKingBoatHB.obj");
+
+		pigCitySky.setHitBox(MODEL_PATH + "/PigCustom/PigStacheHB.obj");
+
+		pigShipMini.setHitBox(MODEL_PATH + "/PigCustom/PigMechanicHB.obj");
 
 		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
-		bird1.loadHitBox();
 
 		// --------------------- MAP
 		decorHitBox.push_back(&terrain);
@@ -828,6 +854,45 @@ protected:
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock2.obj");
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Grass.obj");
 		terrain.setHitBoxes(terrainHitBoxes);
+
+		decorHitBox.push_back(&towerSiege);
+		std::vector<std::string> towerHitBoxes;
+		towerHitBoxes.push_back(HITBOXDEC_PATH + "/TowerBody.obj");
+		towerHitBoxes.push_back(HITBOXDEC_PATH + "/TowerPlatform.obj");
+		towerHitBoxes.push_back(HITBOXDEC_PATH + "/TowerRoof.obj");
+		towerSiege.setHitBoxes(towerHitBoxes);
+
+		decorHitBox.push_back(&seaCity25);
+		std::vector<std::string> cityHitBox;
+		cityHitBox.push_back(HITBOXDEC_PATH + "/HouseBot.obj");
+		cityHitBox.push_back(HITBOXDEC_PATH + "/HouseTop.obj");
+		seaCity25.setHitBoxes(cityHitBox);
+
+		decorHitBox.push_back(&skyCity);
+		std::vector<std::string> skyCityHitBoxes;
+		skyCityHitBoxes.push_back(HITBOXDEC_PATH + "/SkyCityMid.obj");
+		skyCityHitBoxes.push_back(HITBOXDEC_PATH + "/SkyCityTop.obj");
+		skyCityHitBoxes.push_back(HITBOXDEC_PATH + "/SkyCityBot.obj");
+		skyCity.setHitBoxes(skyCityHitBoxes);
+
+		decorHitBox.push_back(&baloon);
+		std::vector<std::string> baloonHitBoxs;
+		baloonHitBoxs.push_back(HITBOXDEC_PATH + "/BaloonBot.obj");
+		baloonHitBoxs.push_back(HITBOXDEC_PATH + "/BaloonMid.obj");
+		baloonHitBoxs.push_back(HITBOXDEC_PATH + "/BaloonTop.obj");
+		baloon.setHitBoxes(baloonHitBoxs);
+
+		decorHitBox.push_back(&shipSmall);
+		std::vector<std::string> shipSmallHitBox;
+		shipSmallHitBox.push_back(HITBOXDEC_PATH + "/BoatMini.obj");
+		shipSmall.setHitBoxes(shipSmallHitBox);
+
+		decorHitBox.push_back(&shipVikings);
+		std::vector<std::string> shipVikingsHitBox;
+		shipVikingsHitBox.push_back(HITBOXDEC_PATH + "/BoatVikings.obj");
+		shipVikings.setHitBoxes(shipVikingsHitBox);
+
+
 
 	}
 
@@ -868,6 +933,18 @@ protected:
 
 		A_PigHelmet.init(this, "/PigCustom/PigHelmet.obj", "/texture.png", &DSLobj);
 		A_PigHelmet.addDSet(this, &DSLobj, &pigBaloon.dSet);
+
+		A_PigKingHouse.init(this, "/PigCustom/PigKingHouse.obj", "/texture.png", &DSLobj);
+		A_PigKingHouse.addDSet(this, &DSLobj, &pigHouse.dSet);
+
+		A_PigKingShip.init(this, "/PigCustom/PigKingBoat.obj", "/texture.png", &DSLobj);
+		A_PigKingShip.addDSet(this, &DSLobj, &pigShip.dSet);
+
+		A_PigMechanics.init(this, "/PigCustom/PigMechanic.obj", "/texture.png", &DSLobj);
+		A_PigMechanics.addDSet(this, &DSLobj, &pigShipMini.dSet);
+
+		A_PigStache.init(this, "/PigCustom/PigStache.obj", "/texture.png", &DSLobj);
+		A_PigStache.addDSet(this, &DSLobj, &pigCitySky.dSet);
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		A_Terrain.addDSet(this, &DSLobj, &terrain.dSet);
@@ -918,8 +995,11 @@ protected:
 		A_BlueBird.cleanup();
 
 		A_PigStd.cleanup();
-
 		A_PigHelmet.cleanup();
+		A_PigKingHouse.cleanup();
+		A_PigKingShip.cleanup();
+		A_PigMechanics.cleanup();
+		A_PigStache.cleanup();
 
 		A_Terrain.cleanup();
 
@@ -978,8 +1058,11 @@ protected:
 		// ------------------------ PIG --------------------
 
 		A_PigStd.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-
 		A_PigHelmet.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_PigKingHouse.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_PigKingShip.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_PigMechanics.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_PigStache.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 		// ------------------------ Terrain -----------------
 
@@ -1022,6 +1105,7 @@ protected:
 
 			if (x && y && z) {
 				std::cout << "HIT PIG\n";
+				
 			}
 		}
 
@@ -1088,6 +1172,10 @@ protected:
 
 		pigStd.updateUniformBuffer(window, device, currentImage, data, ubo);
 		pigBaloon.updateUniformBuffer(window, device, currentImage, data, ubo);
+		pigHouse.updateUniformBuffer(window, device, currentImage, data, ubo);
+		pigShip.updateUniformBuffer(window, device, currentImage, data, ubo);
+		pigCitySky.updateUniformBuffer(window, device, currentImage, data, ubo);
+		pigShipMini.updateUniformBuffer(window, device, currentImage, data, ubo);
 
 		//----------------------- TERRAIN --------------------------
 
