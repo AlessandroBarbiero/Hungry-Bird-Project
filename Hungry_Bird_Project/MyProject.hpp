@@ -282,6 +282,7 @@ protected:
 	uint32_t windowWidth;
 	uint32_t windowHeight;
 	std::string windowTitle;
+	GLFWimage IconImages[1];
 	VkClearColorValue initialBackgroundColor;
 	int uniformBlocksInPool;
 	int texturesInPool;
@@ -339,6 +340,11 @@ protected:
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
         window = glfwCreateWindow(windowWidth, windowHeight, windowTitle.c_str(), nullptr, nullptr);
+
+		//If an icon is present in the variable, set it
+		if (IconImages[0].height) {
+			glfwSetWindowIcon(window, 1, IconImages);
+		}
     }
 
 	virtual void localInit() = 0;

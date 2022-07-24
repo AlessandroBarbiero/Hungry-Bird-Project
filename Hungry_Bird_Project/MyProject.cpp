@@ -14,6 +14,7 @@ const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+// Switch between the two controller mode to choose what to move using wasd keys
 enum GameController {
 	CameraMovement,
 	CannonMovement
@@ -31,9 +32,9 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
 
+//Singleton class used to perceive the time
 class GameTime
 {
-
 	/**
 	 * The Singleton's constructor should always be private to prevent direct
 	 * construction calls with the `new` operator.
@@ -44,8 +45,8 @@ protected:
 	{}
 
 	static GameTime* singleton_;
-	float deltaT;
-	float time;
+	float deltaT = 0;
+	float time = 0;
 
 public:
 
@@ -316,7 +317,7 @@ public:
 
 };
 
-//Each object drawn on the screen need an Asset 
+//Each object drawn on the screen need an Asset, it includes his model and texture
 class Asset {
 protected:
 	Model model;
@@ -381,6 +382,7 @@ public:
 		loadHitBoxes();
 	}
 
+	//TODO: comment
 	void loadHitBoxes() {
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
@@ -426,6 +428,7 @@ public:
 		}
 		return boxes;
 	}
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
@@ -453,10 +456,13 @@ protected:
 		if (isJumping) {
 			jump(v0, -shootAng, birdAng.x);
 		}
-		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
+		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * 
+			glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f)) * 
+			glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
 		return ubo;
 	}
 
+	//Compute the new position and direction of the bird during the flight, angY and angX are in degrees and points out the starting angle of the shot
 	void jump(float v0, float angY, float angX) {
 		deltaT = glfwGetTime() - startJumpTime;
 
@@ -464,7 +470,7 @@ protected:
 		birdPos.z = startPos.z + (v0 * cos(glm::radians(angY))) * deltaT * cos(glm::radians(angX));
 		birdPos.y = -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(glm::radians(angY))) * deltaT + startPos.y;
 
-		glm::vec3 a = glm::vec3(v0 * cos(glm::radians(angY)), -(9.8f * deltaT) + (v0 * sin(glm::radians(angY))), 0.0f);
+		glm::vec3 a = glm::vec3(v0 * cos(glm::radians(angY)),	 -(9.8f * deltaT) + (v0 * sin(glm::radians(angY))),		0.0f);
 		glm::vec3 b = glm::vec3(1.0f, 0.0f, 0.0f);
 		glm::vec3 origin = glm::vec3(0.0f, 0.0f, 0.0f);
 
@@ -565,7 +571,6 @@ public:
 	std::vector<float> hitBox[3];
 
 
-
 	void setHitBox(std::string HitBoxPath) {
 		HitBoxObj = HitBoxPath;
 		loadHitBox();
@@ -610,6 +615,7 @@ public:
 	}
 };
 
+//Spheres used to draw the trajectory of the bird in the cannon
 class WhiteSphere : public GameObject {
 	protected:
 	glm::vec3 spherePos;
@@ -620,7 +626,6 @@ class WhiteSphere : public GameObject {
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		//tutto fermo
 		ubo.model = glm::translate(glm::mat4(1.0f), spherePos);
 		return ubo;
 	}
@@ -644,7 +649,7 @@ class CannonBot : public GameObject {
 				cannonAng.x -= ROT_SPEED * deltaT;
 			}
 		}
-		ubo.model = glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos), glm::radians(cannonAng.x), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.model = glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos),		glm::radians(cannonAng.x),		glm::vec3(0.0f, 1.0f, 0.0f));
 		return ubo;
 	}
 };
@@ -677,7 +682,7 @@ class CannonTop : public GameObject {
 
 	void computeTrajectory() {
 		float a = v0 * sin(glm::radians(-cannonAng.y));
-		float b = pow(v0, 2) * pow(sin(glm::radians(-cannonAng.y)), 2) + 2 * 9.8f * CANNON_TOP_POS.y;
+		float b = pow(v0, 2)	*	pow(sin(glm::radians(-cannonAng.y)), 2)		+	2 * 9.8f * CANNON_TOP_POS.y;
 		float time = (a + sqrt(b)) / 9.8f;
 		
 		float dTime = time / trajectory->size();
@@ -829,8 +834,15 @@ protected:
 		// window size, titile and initial background
 		windowWidth = 1600;
 		windowHeight = 1200;
-		windowTitle = "Hungry_Bird";
+		windowTitle = "Hungry Bird";
 		initialBackgroundColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+		//Set the icon
+		int width, height, channels;
+		unsigned char* pixels = stbi_load("Assets/Icon.png", &width, &height, &channels, 4);
+		IconImages[0].width = width;
+		IconImages[0].height = height;
+		IconImages[0].pixels = pixels;
 
 		// Descriptor pool sizes
 		uniformBlocksInPool = 200;	//10
@@ -847,7 +859,7 @@ protected:
 
 		cCamera->NextView();
 
-		// -------------- BIRDS
+		// -------------- Load BIRDS in the cannon
 		birds.push_back(&bird1);
 		birds.push_back(&bird2);
 		birds.push_back(&bird3);
@@ -944,7 +956,7 @@ protected:
 
 	}
 
-	// Here you load and setup all your Vulkan objects
+	// Here you load and setup all your Vulkan objects, this function is called before the creation of command buffers and sync objects
 	void localInit() {
 
 		setGameState();
