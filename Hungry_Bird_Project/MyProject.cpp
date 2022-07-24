@@ -84,19 +84,84 @@ GameTime* GameTime::GetInstance()
 	return singleton_;
 }
 
+//Each object drawn on the screen need an Asset, it includes his model and texture
+class Asset {
+protected:
+	Model _model;
+	Texture _texture;
+	std::vector<DescriptorSet*> _dSetVector;
+
+public:
+	// initialize model and texture
+	void init(BaseProject* bp, std::string modelPath, std::string texturePath, DescriptorSetLayout* DSLobj) {
+			_model.init(bp, MODEL_PATH + modelPath);
+			_texture.init(bp, TEXTURE_PATH + texturePath);
+	}
+
+	// Add a descriptorSet which means a new gameObject of the asset to render
+	void addDSet(BaseProject* bp, DescriptorSetLayout* DSLobj, DescriptorSet* dSet) {
+		_dSetVector.push_back(dSet);
+		(*dSet).init(bp, DSLobj, {
+		{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+		{1, TEXTURE, 0, &_texture}
+			});
+	}
+
+	// cleanup all the attributes
+	void cleanup() {
+		for (DescriptorSet* dSet : _dSetVector)
+		{
+			(*dSet).cleanup();
+		}
+		_texture.cleanup();
+		_model.cleanup();
+	}
+
+	// Populate command buffer (vertex, descriptor set, indices)
+	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage, DescriptorSet DS_global, Pipeline* P1) {
+		VkBuffer vertexBuffers[] = { _model.vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(commandBuffer, _model.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		for (DescriptorSet* dSet : _dSetVector)
+		{
+			vkCmdBindDescriptorSets(commandBuffer,
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				(*P1).pipelineLayout, 1, 1, &(*dSet).descriptorSets[currentImage],
+				0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(_model.indices.size()), 1, 0, 0, 0);
+		}
+	}
+};
+
 //Observer class, it can observe the game master to activate its functions when onScene
 class GameObject {
+protected:
+	bool _onScreen = false;
+
 public:
 	DescriptorSet dSet;
-
+	
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0;
 
 	void updateUniformBuffer(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
 		ubo = update(window, ubo);
+		ubo.model = (this->_onScreen) ? ubo.model : glm::translate(glm::mat4(1.0f), glm::vec3(1000.0, 1000.0, 1000.0));
 		vkMapMemory(device, dSet.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, dSet.uniformBuffersMemory[0][currentImage]);
 	}
+
+	//Associate the object with his asset and start calculating his position every cycle
+	void init(BaseProject* bp, DescriptorSetLayout* DSLobj, Asset* asset);
+
+	//Show the object on the window, the object will be updated at each frame
+	void showOnScreen();
+
+	//The object will not be updated
+	void hide();
 };
 
 //Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
@@ -107,7 +172,7 @@ protected:
 	{}
 
 	static GameMaster* singleton_;
-	std::list<GameObject*> onScene_;
+	std::list<GameObject*> onScene;
 
 public:
 
@@ -118,15 +183,15 @@ public:
 	static GameMaster* GetInstance();
 
 	void Attach(GameObject* observer) {
-		onScene_.push_back(observer);
+		onScene.push_back(observer);
 	}
 
 	void Detach(GameObject* observer) {
-		onScene_.remove(observer);
+		onScene.remove(observer);
 	}
 
 	void Notify(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
-		for (auto const& obj : onScene_) {
+		for (auto const& obj : onScene) {
 			obj->updateUniformBuffer(window, device, currentImage, data, ubo);
 		}
 	}
@@ -141,6 +206,20 @@ GameMaster* GameMaster::GetInstance()
 	return singleton_;
 }
 
+void GameObject::init(BaseProject* bp, DescriptorSetLayout* DSLobj, Asset* asset) {
+	asset->addDSet(bp, DSLobj, &dSet);
+	GameMaster::GetInstance()->Attach(this);
+}
+void GameObject::showOnScreen() {
+	if (!_onScreen) {
+		_onScreen = true;
+	}
+}
+void GameObject::hide() {
+	if (_onScreen) {
+		_onScreen = false;
+	}
+}
 
 
 class SkyBox {
@@ -317,57 +396,7 @@ public:
 
 };
 
-//Each object drawn on the screen need an Asset, it includes his model and texture
-class Asset {
-protected:
-	Model model;
-	Texture texture;
-	std::vector<DescriptorSet*> dSetVector;
-
-public:
-	// initialize model and texture
-	void init(BaseProject* bp, std::string modelPath, std::string texturePath, DescriptorSetLayout* DSLobj) {
-		model.init(bp, MODEL_PATH + modelPath);
-		texture.init(bp, TEXTURE_PATH + texturePath);
-	}
-
-	// Add a descriptorSet which means a new gameObject of the asset to render
-	void addDSet(BaseProject* bp, DescriptorSetLayout* DSLobj, DescriptorSet* dSet) {
-		dSetVector.push_back(dSet);
-		(*dSet).init(bp, DSLobj, {
-		{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-		{1, TEXTURE, 0, &texture}
-			});
-	}
-
-	// cleanup all the attributes
-	void cleanup() {
-		for (DescriptorSet* dSet : dSetVector)
-		{
-			(*dSet).cleanup();
-		}
-		texture.cleanup();
-		model.cleanup();
-	}
-
-	// Populate command buffer (vertex, descriptor set, indices)
-	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage, DescriptorSet DS_global, Pipeline* P1) {
-		VkBuffer vertexBuffers[] = { model.vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(commandBuffer, model.indexBuffer, 0,
-			VK_INDEX_TYPE_UINT32);
-		for (DescriptorSet* dSet : dSetVector)
-		{
-			vkCmdBindDescriptorSets(commandBuffer,
-				VK_PIPELINE_BIND_POINT_GRAPHICS,
-				(*P1).pipelineLayout, 1, 1, &(*dSet).descriptorSets[currentImage],
-				0, nullptr);
-			vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
-		}
-	}
-};
+//------------------ GAME OBJECTS --------------------
 
 class Decoration: public GameObject {
 	std::vector<std::string> HitBoxObjs;
@@ -678,6 +707,7 @@ class CannonTop : public GameObject {
 
 	void shoot() {
 		bird->startJump(v0, cannonAng.y, cannonAng.x);
+		bird->showOnScreen();
 	}
 
 	void computeTrajectory() {
@@ -985,79 +1015,79 @@ protected:
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		A_BlueBird.init(this, "/Birds/blues.obj", "/texture.png", &DSLobj);
 		for (Bird *bird : birds) {
-			A_BlueBird.addDSet(this, &DSLobj, &(*bird).dSet);
+			bird->init(this, &DSLobj, &A_BlueBird);
 		}
-		GameMaster::GetInstance()->Attach(birds.at(birdInCannon));
+		birds.at(birdInCannon)->showOnScreen();
 
 		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
-		A_PigStd.addDSet(this, &DSLobj, &pigStd.dSet);
-		GameMaster::GetInstance()->Attach(&pigStd);
+		pigStd.init(this, &DSLobj, &A_PigStd);
+		pigStd.showOnScreen();
 
 		A_PigHelmet.init(this, "/PigCustom/PigHelmet.obj", "/texture.png", &DSLobj);
-		A_PigHelmet.addDSet(this, &DSLobj, &pigBaloon.dSet);
-		GameMaster::GetInstance()->Attach(&pigBaloon);
+		pigBaloon.init(this, &DSLobj, &A_PigHelmet);
+		pigBaloon.showOnScreen();
 
 		A_PigKingHouse.init(this, "/PigCustom/PigKingHouse.obj", "/texture.png", &DSLobj);
-		A_PigKingHouse.addDSet(this, &DSLobj, &pigHouse.dSet);
-		GameMaster::GetInstance()->Attach(&pigHouse);
+		pigHouse.init(this, &DSLobj, &A_PigKingHouse);
+		pigHouse.showOnScreen();
 
 		A_PigKingShip.init(this, "/PigCustom/PigKingBoat.obj", "/texture.png", &DSLobj);
-		A_PigKingShip.addDSet(this, &DSLobj, &pigShip.dSet);
-		GameMaster::GetInstance()->Attach(&pigShip);
+		pigShip.init(this, &DSLobj, &A_PigKingShip);
+		pigShip.showOnScreen();
 
 		A_PigMechanics.init(this, "/PigCustom/PigMechanic.obj", "/texture.png", &DSLobj);
-		A_PigMechanics.addDSet(this, &DSLobj, &pigShipMini.dSet);
-		GameMaster::GetInstance()->Attach(&pigShipMini);
+		pigShipMini.init(this, &DSLobj, &A_PigMechanics);
+		pigShipMini.showOnScreen();
 
 		A_PigStache.init(this, "/PigCustom/PigStache.obj", "/texture.png", &DSLobj);
-		A_PigStache.addDSet(this, &DSLobj, &pigCitySky.dSet);
-		GameMaster::GetInstance()->Attach(&pigCitySky);
+		pigCitySky.init(this, &DSLobj, &A_PigStache);
+		pigCitySky.showOnScreen();
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
-		A_Terrain.addDSet(this, &DSLobj, &terrain.dSet);
-		GameMaster::GetInstance()->Attach(&terrain);
+		terrain.init(this, &DSLobj, &A_Terrain);
+		terrain.showOnScreen();
 
 		A_CannonBot.init(this, "/Cannon/BotCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
-		A_CannonBot.addDSet(this, &DSLobj, &cannonBot.dSet);
-		GameMaster::GetInstance()->Attach(&cannonBot);
+		cannonBot.init(this, &DSLobj, &A_CannonBot);
+		cannonBot.showOnScreen();
 
 		A_CannonTop.init(this, "/Cannon/TopCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
-		A_CannonTop.addDSet(this, &DSLobj, &cannonTop.dSet);
-		GameMaster::GetInstance()->Attach(&cannonTop);
+		cannonTop.init(this, &DSLobj, &A_CannonTop);
+		cannonTop.showOnScreen();
 
 		A_Sphere.init(this, "/Cannon/Trajectory.obj", "/Cannon/Trajectory.png", &DSLobj);
 		for (WhiteSphere *block : trajectorySpheres) {
-			A_Sphere.addDSet(this, &DSLobj, &(*block).dSet);
-			GameMaster::GetInstance()->Attach(block);
+			block->init(this, &DSLobj, &A_Sphere);
+			block->showOnScreen();
 		}
 
 		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
-		A_TowerSiege.addDSet(this, &DSLobj, &towerSiege.dSet);
-		GameMaster::GetInstance()->Attach(&towerSiege);
+		towerSiege.init(this, &DSLobj, &A_TowerSiege);
+		towerSiege.showOnScreen();
 
 		A_Baloon.init(this, "/Decorations/Baloon.obj", "/Decorations/Baloon.png", &DSLobj);
-		A_Baloon.addDSet(this, &DSLobj, &baloon.dSet);
-		GameMaster::GetInstance()->Attach(&baloon);
+		baloon.init(this, &DSLobj, &A_Baloon);
+		baloon.showOnScreen();
 
 		A_SeaCity25.init(this, "/Decorations/SeaCity25.obj", "/Decorations/SeaCity25.png", &DSLobj);
-		A_SeaCity25.addDSet(this, &DSLobj, &seaCity25.dSet);
-		GameMaster::GetInstance()->Attach(&seaCity25);
+		seaCity25.init(this, &DSLobj, &A_SeaCity25);
+		seaCity25.showOnScreen();
 
 		A_SeaCity37.init(this, "/Decorations/SeaCity37.obj", "/Decorations/SeaCity37.png", &DSLobj);
-		A_SeaCity37.addDSet(this, &DSLobj, &seaCity37.dSet);
-		GameMaster::GetInstance()->Attach(&seaCity37);
+		seaCity37.init(this, &DSLobj, &A_SeaCity37);
+		seaCity37.showOnScreen();
 
 		A_ShipSmall.init(this, "/Decorations/ShipSmall.obj", "/Decorations/ShipSmall.png", &DSLobj);
-		A_ShipSmall.addDSet(this, &DSLobj, &shipSmall.dSet);
-		GameMaster::GetInstance()->Attach(&shipSmall);
+		shipSmall.init(this, &DSLobj, &A_ShipSmall);
+		shipSmall.showOnScreen();
 
 		A_ShipVikings.init(this, "/Decorations/ShipVikings.obj", "/Decorations/ShipVikings.png", &DSLobj);
-		A_ShipVikings.addDSet(this, &DSLobj, &shipVikings.dSet);
-		GameMaster::GetInstance()->Attach(&shipVikings);
+		shipVikings.init(this, &DSLobj, &A_ShipVikings);
+		shipVikings.showOnScreen();
 
 		A_SkyCity.init(this, "/Decorations/SkyCity.obj", "/Decorations/SkyCity.png", &DSLobj);
-		A_SkyCity.addDSet(this, &DSLobj, &skyCity.dSet);
-		GameMaster::GetInstance()->Attach(&skyCity);
+		skyCity.init(this, &DSLobj, &A_SkyCity);
+		skyCity.showOnScreen();
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -1183,7 +1213,7 @@ protected:
 
 			if (x && y && z) {
 				std::cout << "HIT PIG\n";
-				
+				birds.at(0)->hide();
 			}
 		}
 
