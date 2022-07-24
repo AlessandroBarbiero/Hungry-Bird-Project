@@ -157,10 +157,9 @@ public:
 	//Associate the object with his asset and start calculating his position every cycle
 	void init(BaseProject* bp, DescriptorSetLayout* DSLobj, Asset* asset);
 
-	//Show the object on the window, the object will be updated at each frame
 	void showOnScreen();
 
-	//The object will not be updated
+	//The object will be hidden from the screen
 	void hide();
 };
 
@@ -211,14 +210,10 @@ void GameObject::init(BaseProject* bp, DescriptorSetLayout* DSLobj, Asset* asset
 	GameMaster::GetInstance()->Attach(this);
 }
 void GameObject::showOnScreen() {
-	if (!_onScreen) {
 		_onScreen = true;
-	}
 }
 void GameObject::hide() {
-	if (_onScreen) {
 		_onScreen = false;
-	}
 }
 
 
@@ -767,7 +762,14 @@ class CannonTop : public GameObject {
 				computeTrajectory();
 			}
 		}
-		ubo.model = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f), cannonPos), glm::radians(cannonAng.x), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(cannonAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
+		ubo.model = glm::rotate(
+						glm::rotate(
+							glm::translate(glm::mat4(1.0f), cannonPos),		
+							glm::radians(cannonAng.x),
+							glm::vec3(0.0f, 1.0f, 0.0f)
+							),
+						glm::radians(cannonAng.y),
+						glm::vec3(1.0f, 0.0f, 0.0f));
 		return ubo;
 	}	
 };
@@ -1017,7 +1019,6 @@ protected:
 		for (Bird *bird : birds) {
 			bird->init(this, &DSLobj, &A_BlueBird);
 		}
-		birds.at(birdInCannon)->showOnScreen();
 
 		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
 		pigStd.init(this, &DSLobj, &A_PigStd);
