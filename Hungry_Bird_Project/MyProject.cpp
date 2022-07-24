@@ -169,6 +169,140 @@ public:
 	void hide();
 
 	virtual bool hasCollided(HitBox_t otherObject) { return false; };
+
+	virtual void hit() { return; };
+};
+
+class Bird :public GameObject {
+protected:
+	glm::vec3 startPos = glm::vec3(0.0f);
+	float shootAng = 0.0f;
+
+	glm::vec3 birdPos = glm::vec3(0.0f);
+	glm::vec3 birdAng = glm::vec3(0.0f);
+
+	const float ROT_SPEED = 60.0f;
+
+	bool isActive = false;
+
+	bool isJumping = false;
+	float v0;
+	float startJumpTime = 0.0f;
+	float deltaT = 0.0f;
+
+	HitBox_t _hitBox;
+
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		if (isJumping) {
+			jump(v0, -shootAng, birdAng.x);
+		}
+		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) *
+			glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f)) *
+			glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
+		return ubo;
+	}
+
+	//Compute the new position and direction of the bird during the flight, angY and angX are in degrees and points out the starting angle of the shot
+	void jump(float v0, float angY, float angX) {
+		deltaT = glfwGetTime() - startJumpTime;
+
+		birdPos.x = startPos.x + (v0 * cos(glm::radians(angY))) * deltaT * sin(glm::radians(angX));
+		birdPos.z = startPos.z + (v0 * cos(glm::radians(angY))) * deltaT * cos(glm::radians(angX));
+		birdPos.y = -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(glm::radians(angY))) * deltaT + startPos.y;
+
+		glm::vec3 a = glm::vec3(v0 * cos(glm::radians(angY)), -(9.8f * deltaT) + (v0 * sin(glm::radians(angY))), 0.0f);
+		glm::vec3 b = glm::vec3(1.0f, 0.0f, 0.0f);
+		glm::vec3 origin = glm::vec3(0.0f, 0.0f, 0.0f);
+
+		glm::vec3 da = glm::normalize(a - origin);
+		glm::vec3 db = glm::normalize(b - origin);
+		float newAngY = glm::degrees(glm::acos(glm::dot(da, db)));
+		if (a.y > 0) {
+			newAngY = -newAngY;
+		}
+
+		birdAng.y = newAngY;
+
+
+		if (birdPos.y <= 0.0f) {
+			birdPos.y = 0.0f;
+			isJumping = false;
+		}
+	}
+
+public:
+	std::string HitBoxObj;
+
+	void startJump(float v0, float angY, float angX) {
+		this->v0 = v0;
+		this->birdAng.x = angX;
+		this->birdAng.y = angY;
+		this->shootAng = angY;
+		this->isJumping = true;
+		this->startJumpTime = glfwGetTime();
+	}
+
+	void showStat(int i) {
+		std::cout << "----- Bird in " << i << "----- " << std::endl;
+		std::cout << "Active: " << isActive << std::endl;
+		std::cout << "Position: " << birdPos.x << " " << birdPos.y << " " << birdPos.z << std::endl;
+		std::cout << "-----------------------------" << std::endl;
+	}
+
+	void setActive() {
+		isActive = true;
+		startPos = CANNON_TOP_POS;
+		birdPos = CANNON_TOP_POS;
+	}
+
+	void setHitBox(std::string HitBoxPath) {
+		HitBoxObj = HitBoxPath;
+		loadHitBox();
+	}
+
+	void loadHitBox() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+			HitBoxObj.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+
+		//Save the vertices values in a set in order to eliminate duplicates
+		std::set<float> x, y, z;
+
+		for (int i = 0; i < attrib.vertices.size(); i = i + 3)
+		{
+			x.insert(attrib.vertices[i + 0]);
+			y.insert(attrib.vertices[i + 1]);
+			z.insert(attrib.vertices[i + 2]);
+		}
+
+		//Save only first and last element of the sets 
+		_hitBox.x = glm::vec2(*x.begin(), *--x.end());
+		_hitBox.y = glm::vec2(*y.begin(), *--y.end());
+		_hitBox.z = glm::vec2(*z.begin(), *--z.end());
+
+		std::cout << "bird hit box loaded";
+	}
+
+	void hit() override {
+		isJumping = false;
+		birdPos.y = 0.0f;
+		this->hide();
+	}
+
+	//Return the hitBox translated in the right position following the bird movements
+	HitBox_t getHitBox() {
+		HitBox_t box;
+		box.x = glm::vec2(birdPos.x - abs(_hitBox.x[0]), birdPos.x + abs(_hitBox.x[1]));
+		box.y = glm::vec2(birdPos.y - abs(_hitBox.y[0]), birdPos.y + abs(_hitBox.y[1]));
+		box.z = glm::vec2(birdPos.z - abs(_hitBox.z[0]), birdPos.z + abs(_hitBox.z[1]));
+		return box;
+	}
 };
 
 //Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
@@ -196,6 +330,9 @@ public:
 	void Detach(GameObject* observer) {
 		onScene.remove(observer);
 	}
+
+	//Game master controls if an object on scene has collided with the passed moving object, in that case, call his hit function
+	void handleCollision(Bird* movingObject);
 
 	void Notify(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
 		for (auto const& obj : onScene) {
@@ -456,134 +593,37 @@ public:
 		return _hitBoxes;
 	}
 
+	bool hasCollided(HitBox_t otherObject) override {
+		if (!_onScreen) {
+			return false;
+		}
+		bool x, y, z;
+			
+		for (HitBox_t _hitBox : _hitBoxes) {
+			x = false; y = false; z = false;
+
+			if ((otherObject.x[0] > _hitBox.x[0] && otherObject.x[0] < _hitBox.x[1]) || (otherObject.x[1] > _hitBox.x[0] && otherObject.x[1] < _hitBox.x[1]))
+				x = true;
+			if ((otherObject.y[0] > _hitBox.y[0] && otherObject.y[0] < _hitBox.y[1]) || (otherObject.y[1] > _hitBox.y[0] && otherObject.y[1] < _hitBox.y[1]))
+				y = true;
+			if ((otherObject.z[0] > _hitBox.z[0] && otherObject.z[0] < _hitBox.z[1]) || (otherObject.z[1] > _hitBox.z[0] && otherObject.z[1] < _hitBox.z[1]))
+				z = true;
+
+			if (x && y && z)
+				return true;
+		}
+
+		return false;
+	}
+
+	void hit() override {
+		//TODO: insert here animations for hit against decorations 
+		std::cout << "DECORATION HIT\n";
+	}
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		ubo.model = glm::mat4(1.0f);
 		return ubo;
-	}
-};
-
-class Bird :public GameObject {
-protected:
-	glm::vec3 startPos = glm::vec3(0.0f);
-	float shootAng = 0.0f;
-	
-	glm::vec3 birdPos = glm::vec3(0.0f);
-	glm::vec3 birdAng = glm::vec3(0.0f);
-
-	const float ROT_SPEED = 60.0f;
-
-	bool isActive = false;
-
-	bool isJumping = false;
-	float v0;
-	float startJumpTime = 0.0f;
-	float deltaT = 0.0f;
-
-	HitBox_t _hitBox;
-
-	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
-		if (isJumping) {
-			jump(v0, -shootAng, birdAng.x);
-		}
-		ubo.model = glm::translate(glm::mat4(1.0f), birdPos) * 
-			glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.x), glm::vec3(0.0f, 1.0f, 0.0f)) * 
-			glm::rotate(glm::mat4(1.0f), glm::radians(birdAng.y), glm::vec3(1.0f, 0.0f, 0.0f));
-		return ubo;
-	}
-
-	//Compute the new position and direction of the bird during the flight, angY and angX are in degrees and points out the starting angle of the shot
-	void jump(float v0, float angY, float angX) {
-		deltaT = glfwGetTime() - startJumpTime;
-
-		birdPos.x = startPos.x + (v0 * cos(glm::radians(angY))) * deltaT * sin(glm::radians(angX));
-		birdPos.z = startPos.z + (v0 * cos(glm::radians(angY))) * deltaT * cos(glm::radians(angX));
-		birdPos.y = -(0.5 * 9.8f * pow(deltaT, 2)) + (v0 * sin(glm::radians(angY))) * deltaT + startPos.y;
-
-		glm::vec3 a = glm::vec3(v0 * cos(glm::radians(angY)),	 -(9.8f * deltaT) + (v0 * sin(glm::radians(angY))),		0.0f);
-		glm::vec3 b = glm::vec3(1.0f, 0.0f, 0.0f);
-		glm::vec3 origin = glm::vec3(0.0f, 0.0f, 0.0f);
-
-		glm::vec3 da = glm::normalize(a - origin);
-		glm::vec3 db = glm::normalize(b - origin);
-		float newAngY = glm::degrees(glm::acos(glm::dot(da, db)));
-		if (a.y > 0) {
-			newAngY = -newAngY;
-		}
-
-		birdAng.y = newAngY;
-		
-
-		if (birdPos.y <= 0.0f) {
-			birdPos.y = 0.0f;
-			isJumping = false;
-		}
-	}
-
-	public:
-		std::string HitBoxObj;
-
-	void startJump(float v0, float angY, float angX) {
-		this->v0 = v0;
-		this->birdAng.x = angX;
-		this->birdAng.y = angY;
-		this->shootAng = angY;
-		this->isJumping = true;
-		this->startJumpTime = glfwGetTime();
-	}
-
-	void showStat(int i) {
-			std::cout << "----- Bird in " << i << "----- " << std::endl;
-			std::cout << "Active: " << isActive << std::endl;
-			std::cout << "Position: " << birdPos.x <<" " << birdPos.y << " " << birdPos.z << std::endl;
-			std::cout << "-----------------------------" << std::endl;
-	}
-
-	void setActive() {
-		isActive = true;
-		startPos = CANNON_TOP_POS;
-		birdPos = CANNON_TOP_POS;
-	}
-
-	void setHitBox(std::string HitBoxPath) {
-		HitBoxObj = HitBoxPath;
-		loadHitBox();
-	}
-
-	void loadHitBox() {
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string warn, err;
-
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-			HitBoxObj.c_str())) {
-			throw std::runtime_error(warn + err);
-		}
-
-		//Save the vertices values in a set in order to eliminate duplicates
-		std::set<float> x, y, z;
-
-		for (int i = 0; i < attrib.vertices.size(); i = i + 3)
-		{
-			x.insert(attrib.vertices[i + 0]);
-			y.insert(attrib.vertices[i + 1]);
-			z.insert(attrib.vertices[i + 2]);
-		}
-
-		//Save only first and last element of the sets 
-		_hitBox.x = glm::vec2(*x.begin(), *--x.end());
-		_hitBox.y = glm::vec2(*y.begin(), *--y.end());
-		_hitBox.z = glm::vec2(*z.begin(), *--z.end());
-
-		std::cout << "bird hit box loaded";
-	}
-
-	HitBox_t getHitBox() {
-		HitBox_t box;
-		box.x = glm::vec2(birdPos.x - abs(_hitBox.x[0]),	birdPos.x + abs(_hitBox.x[1]));
-		box.y = glm::vec2(birdPos.y - abs(_hitBox.y[0]),	birdPos.y + abs(_hitBox.y[1]));
-		box.z = glm::vec2(birdPos.z - abs(_hitBox.z[0]),	birdPos.z + abs(_hitBox.z[1]));
-		return box;
 	}
 };
 
@@ -600,7 +640,6 @@ protected:
 
 public:
 	std::string HitBoxObj;
-
 
 	void setHitBox(std::string HitBoxPath) {
 		HitBoxObj = HitBoxPath;
@@ -642,7 +681,22 @@ public:
 		if (!_onScreen) {
 			return false;
 		}
+		bool x = false, y = false, z = false;
 
+		if ((otherObject.x[0] > _hitBox.x[0] && otherObject.x[0] < _hitBox.x[1]) || (otherObject.x[1] > _hitBox.x[0] && otherObject.x[1] < _hitBox.x[1]))
+			x = true;
+		if ((otherObject.y[0] > _hitBox.y[0] && otherObject.y[0] < _hitBox.y[1]) || (otherObject.y[1] > _hitBox.y[0] && otherObject.y[1] < _hitBox.y[1]))
+			y = true;
+		if ((otherObject.z[0] > _hitBox.z[0] && otherObject.z[0] < _hitBox.z[1]) || (otherObject.z[1] > _hitBox.z[0] && otherObject.z[1] < _hitBox.z[1]))
+			z = true;
+
+		return (x && y && z);
+	}
+
+	void hit() override {
+		//TODO: insert here animations for hit against pigs 
+		std::cout << "HIT PIG " << this << "\n";
+		this->hide();
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -928,12 +982,6 @@ protected:
 	}
 
 	void loadHitBoxes() {
-		pigsHitBox.push_back(&pigStd);
-		pigsHitBox.push_back(&pigBaloon);
-		pigsHitBox.push_back(&pigHouse);
-		pigsHitBox.push_back(&pigShip);
-		pigsHitBox.push_back(&pigCitySky);
-		pigsHitBox.push_back(&pigShipMini);
 
 		pigStd.setHitBox(MODEL_PATH + "/PigCustom/PigStandardHB.obj");
 
@@ -950,7 +998,6 @@ protected:
 		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
 
 		// --------------------- MAP
-		decorHitBox.push_back(&terrain);
 
 		std::vector<std::string> terrainHitBoxes;
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Sea.obj");
@@ -959,43 +1006,42 @@ protected:
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Grass.obj");
 		terrain.setHitBoxes(terrainHitBoxes);
 
-		decorHitBox.push_back(&towerSiege);
+
 		std::vector<std::string> towerHitBoxes;
 		towerHitBoxes.push_back(HITBOXDEC_PATH + "/TowerBody.obj");
 		towerHitBoxes.push_back(HITBOXDEC_PATH + "/TowerPlatform.obj");
 		towerHitBoxes.push_back(HITBOXDEC_PATH + "/TowerRoof.obj");
 		towerSiege.setHitBoxes(towerHitBoxes);
 
-		decorHitBox.push_back(&seaCity25);
+
 		std::vector<std::string> cityHitBox;
 		cityHitBox.push_back(HITBOXDEC_PATH + "/HouseBot.obj");
 		cityHitBox.push_back(HITBOXDEC_PATH + "/HouseTop.obj");
 		seaCity25.setHitBoxes(cityHitBox);
 
-		decorHitBox.push_back(&skyCity);
+
 		std::vector<std::string> skyCityHitBoxes;
 		skyCityHitBoxes.push_back(HITBOXDEC_PATH + "/SkyCityMid.obj");
 		skyCityHitBoxes.push_back(HITBOXDEC_PATH + "/SkyCityTop.obj");
 		skyCityHitBoxes.push_back(HITBOXDEC_PATH + "/SkyCityBot.obj");
 		skyCity.setHitBoxes(skyCityHitBoxes);
 
-		decorHitBox.push_back(&baloon);
+
 		std::vector<std::string> baloonHitBoxs;
 		baloonHitBoxs.push_back(HITBOXDEC_PATH + "/BaloonBot.obj");
 		baloonHitBoxs.push_back(HITBOXDEC_PATH + "/BaloonMid.obj");
 		baloonHitBoxs.push_back(HITBOXDEC_PATH + "/BaloonTop.obj");
 		baloon.setHitBoxes(baloonHitBoxs);
 
-		decorHitBox.push_back(&shipSmall);
+	
 		std::vector<std::string> shipSmallHitBox;
 		shipSmallHitBox.push_back(HITBOXDEC_PATH + "/BoatMini.obj");
 		shipSmall.setHitBoxes(shipSmallHitBox);
 
-		decorHitBox.push_back(&shipVikings);
+
 		std::vector<std::string> shipVikingsHitBox;
 		shipVikingsHitBox.push_back(HITBOXDEC_PATH + "/BoatVikings.obj");
 		shipVikings.setHitBoxes(shipVikingsHitBox);
-
 
 
 	}
@@ -1209,51 +1255,6 @@ protected:
 		 
 	}
 
-	void handleCollision()
-	{
-		HitBox_t birdHitBox = birds.at(birdInCannon)->getHitBox();
-		bool x, y, z;
-
-		for (Pig *pig : pigsHitBox) {
-			x = false; y = false; z = false;
-			HitBox_t pigHitBox = pig->getHitBox();
-
-			if ((birdHitBox.x[0] > pigHitBox.x[0] && birdHitBox.x[0] < pigHitBox.x[1]) || (birdHitBox.x[1] > pigHitBox.x[0] && birdHitBox.x[1] < pigHitBox.x[1]))
-				x = true;
-			if ((birdHitBox.y[0] > pigHitBox.y[0] && birdHitBox.y[0] < pigHitBox.y[1]) || (birdHitBox.y[1] > pigHitBox.y[0] && birdHitBox.y[1] < pigHitBox.y[1]))
-				y = true;
-			if ((birdHitBox.z[0] > pigHitBox.z[0] && birdHitBox.z[0] < pigHitBox.z[1]) || (birdHitBox.z[1] > pigHitBox.z[0] && birdHitBox.z[1] < pigHitBox.z[1]))
-				z = true;
-
-			if (x && y && z) {
-				std::cout << "HIT PIG " << pig << "\n";
-				birds.at(0)->hide();
-				pig->hide();
-			}
-		}
-
-
-
-		for (Decoration *decor : decorHitBox)
-		{
-			std::vector <HitBox_t> decorHitBoxes = decor->getHitBox();
-			for (HitBox_t HitBox : decorHitBoxes) {
-				x = false; y = false; z = false;
-				if ((birdHitBox.x[0] > HitBox.x[0] && birdHitBox.x[0] < HitBox.x[1]) || (birdHitBox.x[1] > HitBox.x[0] && birdHitBox.x[1] < HitBox.x[1]))
-					x = true;
-				if ((birdHitBox.y[0] > HitBox.y[0] && birdHitBox.y[0] < HitBox.y[1]) || (birdHitBox.y[1] > HitBox.y[0] && birdHitBox.y[1] < HitBox.y[1]))
-					y = true;
-				if ((birdHitBox.z[0] > HitBox.z[0] && birdHitBox.z[0] < HitBox.z[1]) || (birdHitBox.z[1] > HitBox.z[0] && birdHitBox.z[1] < HitBox.z[1]))
-					z = true;
-
-				if (x && y && z) {
-					std::cout << "TERRAIN HIT\n";
-				}
-			}
-
-		}
-	}
-
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
@@ -1289,12 +1290,22 @@ protected:
 
 
 		// ------------------------------ COLLISION
-		handleCollision();
+		GameMaster::GetInstance()->handleCollision(birds.at(birdInCannon));
 	}
 
 
 };
 
+void GameMaster::handleCollision(Bird* movingObject) {
+	HitBox_t hitBoxMove = movingObject->getHitBox();
+	for (auto const& obj : onScene) {
+		if (obj->hasCollided(hitBoxMove)) {
+			obj->hit();
+			movingObject->hit();
+			return;
+		}
+	}
+}
 
 //calbacks inputs
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
