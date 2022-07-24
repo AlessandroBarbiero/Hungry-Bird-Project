@@ -14,6 +14,10 @@ const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+typedef struct HitBox_s {
+	glm::vec2 x, y, z;
+}HitBox_t;
+
 // Switch between the two controller mode to choose what to move using wasd keys
 enum GameController {
 	CameraMovement,
@@ -144,6 +148,7 @@ protected:
 public:
 	DescriptorSet dSet;
 	
+	//Called once every cycle if the object is on scene (attached to the GameMaster), write here the update for position and orientation in the ubo
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) = 0;
 
 	void updateUniformBuffer(GLFWwindow* window, VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
@@ -161,6 +166,8 @@ public:
 
 	//The object will be hidden from the screen
 	void hide();
+
+	virtual bool hasCollided(HitBox_t otherObject) { return false; };
 };
 
 //Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
@@ -589,10 +596,12 @@ class BirdYellow : public Bird {
 };
 
 class Pig :public GameObject {
+protected:
+	HitBox_t _hitBox;
 
 public:
 	std::string HitBoxObj;
-	std::vector<float> hitBox[3];
+
 
 
 	void setHitBox(std::string HitBoxPath) {
@@ -611,6 +620,7 @@ public:
 			throw std::runtime_error(warn + err);
 		}
 
+		//Save the vertices values in a set in order to eliminate duplicates
 		std::set<float> x, y, z;
 
 		for (int i = 0; i < attrib.vertices.size(); i = i+3)
@@ -620,17 +630,14 @@ public:
 			z.insert(attrib.vertices[i + 2]);
 		}
 
-		hitBox[0] = std::vector<float>(x.begin(), x.end());
-		hitBox[1] = std::vector<float>(y.begin(), y.end());
-		hitBox[2] = std::vector<float>(z.begin(), z.end());
+		//Save only first and last element of the sets 
+		_hitBox.x = glm::vec2(*x.begin(), *--x.end());
+		_hitBox.y = glm::vec2(*y.begin(), *--y.end());
+		_hitBox.z = glm::vec2(*z.begin(), *--z.end());
 	}
 
-	std::vector<glm::vec2> getHitBox() {
-		std::vector<glm::vec2> box;
-		box.push_back(glm::vec2(hitBox[0][0], hitBox[0][1]));
-		box.push_back(glm::vec2(hitBox[1][0], hitBox[1][1]));
-		box.push_back(glm::vec2(hitBox[2][0], hitBox[2][1]));
-		return box;
+	HitBox_t getHitBox() {
+		return _hitBox;
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -1199,22 +1206,24 @@ protected:
 
 	void handleCollision()
 	{
-		std::vector<glm::vec2> birdHitBox = bird1.getHitBox();
-		bool x = false, y = false, z = false;
+		std::vector<glm::vec2> birdHitBox = birds.at(birdInCannon)->getHitBox();
+		bool x, y, z;
 
 		for (Pig *pig : pigsHitBox) {
-			std::vector<glm::vec2> pigHitBox = pig->getHitBox();
+			x = false; y = false; z = false;
+			HitBox_t pigHitBox = pig->getHitBox();
 
-			if ((birdHitBox[0][0] > pigHitBox[0][0] && birdHitBox[0][0] < pigHitBox[0][1]) || (birdHitBox[0][1] > pigHitBox[0][0] && birdHitBox[0][1] < pigHitBox[0][1]))
+			if ((birdHitBox[0][0] > pigHitBox.x[0] && birdHitBox[0][0] < pigHitBox.x[1]) || (birdHitBox[0][1] > pigHitBox.x[0] && birdHitBox[0][1] < pigHitBox.x[1]))
 				x = true;
-			if ((birdHitBox[1][0] > pigHitBox[1][0] && birdHitBox[1][0] < pigHitBox[1][1]) || (birdHitBox[1][1] > pigHitBox[1][0] && birdHitBox[1][1] < pigHitBox[1][1]))
+			if ((birdHitBox[1][0] > pigHitBox.y[0] && birdHitBox[1][0] < pigHitBox.y[1]) || (birdHitBox[1][1] > pigHitBox.y[0] && birdHitBox[1][1] < pigHitBox.y[1]))
 				y = true;
-			if ((birdHitBox[2][0] > pigHitBox[2][0] && birdHitBox[2][0] < pigHitBox[2][1]) || (birdHitBox[2][1] > pigHitBox[2][0] && birdHitBox[2][1] < pigHitBox[2][1]))
+			if ((birdHitBox[2][0] > pigHitBox.z[0] && birdHitBox[2][0] < pigHitBox.z[1]) || (birdHitBox[2][1] > pigHitBox.z[0] && birdHitBox[2][1] < pigHitBox.z[1]))
 				z = true;
 
 			if (x && y && z) {
-				std::cout << "HIT PIG\n";
+				std::cout << "HIT PIG " << pig << "\n";
 				birds.at(0)->hide();
+				pig->hide();
 			}
 		}
 
@@ -1299,7 +1308,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
 		cCamera->NextView();
 	}
-	//to debg the position of the camera if we want to add new view
+	//to debug the position of the camera if we want to add new view
 	if (key == GLFW_KEY_L && action == GLFW_PRESS) {
 		cCamera->ShowStat();
 	}
