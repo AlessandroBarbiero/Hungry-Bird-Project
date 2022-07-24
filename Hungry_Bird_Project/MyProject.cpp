@@ -14,6 +14,7 @@ const glm::vec3 CANNON_TOP_POS = glm::vec3(-0.45377f, 9.50215f, -3.0006f);
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+// The hitboxes are boxes placed with edges parallel to xyz axis -> we need only 6 values to save them
 typedef struct HitBox_s {
 	glm::vec2 x, y, z;
 }HitBox_t;
@@ -401,10 +402,12 @@ public:
 //------------------ GAME OBJECTS --------------------
 
 class Decoration: public GameObject {
+protected:
 	std::vector<std::string> HitBoxObjs;
-	std::vector < std::array<std::vector<float>,3>> hitBoxes;
+	std::vector <HitBox_t> _hitBoxes;
 
 public:
+	// Link a list of hitboxes to this object, the hixBoxes object must be cubes with edges parallel to xyz axis
 	void setHitBoxes(std::vector<std::string> HitBoxPaths) {
 		for (std::string path : HitBoxPaths)
 		{
@@ -413,7 +416,7 @@ public:
 		loadHitBoxes();
 	}
 
-	//TODO: comment
+	// Take the vertices of the hitboxes and save them in a struct (HitBoxes edges are parallel to xyz axis)
 	void loadHitBoxes() {
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
@@ -436,28 +439,21 @@ public:
 				z.insert(attrib.vertices[i + 2]);
 			}
 
-			std::array<std::vector<float>,3>hitBox;
+			HitBox_t hitBox;
 
-			hitBox[0] = std::vector<float>(x.begin(), x.end());
-			hitBox[1] = std::vector<float>(y.begin(), y.end());
-			hitBox[2] = std::vector<float>(z.begin(), z.end());
+			//Save only first and last element of the sets 
+			hitBox.x = glm::vec2(*x.begin(), *--x.end());
+			hitBox.y = glm::vec2(*y.begin(), *--y.end());
+			hitBox.z = glm::vec2(*z.begin(), *--z.end());
 
-			hitBoxes.push_back(hitBox);
+			_hitBoxes.push_back(hitBox);
 
-			std::cout << "loaded hit terrain\n";
+			std::cout << "loaded hitBoxes terrain\n";
 		}
 	}
 
-	std::vector <std::vector<glm::vec2>> getHitBox() {
-		std::vector <std::vector<glm::vec2>> boxes;
-		for (auto box : hitBoxes) {
-			std::vector<glm::vec2> objHit;
-			objHit.push_back(glm::vec2(box[0][0], box[0][1]));
-			objHit.push_back(glm::vec2(box[1][0], box[1][1]));
-			objHit.push_back(glm::vec2(box[2][0], box[2][1]));
-			boxes.push_back(objHit);
-		}
-		return boxes;
+	std::vector <HitBox_t> getHitBox() {
+		return _hitBoxes;
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -482,6 +478,8 @@ protected:
 	float v0;
 	float startJumpTime = 0.0f;
 	float deltaT = 0.0f;
+
+	HitBox_t _hitBox;
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		if (isJumping) {
@@ -523,7 +521,6 @@ protected:
 
 	public:
 		std::string HitBoxObj;
-		std::vector<float> hitBox[3];
 
 	void startJump(float v0, float angY, float angX) {
 		this->v0 = v0;
@@ -563,6 +560,7 @@ protected:
 			throw std::runtime_error(warn + err);
 		}
 
+		//Save the vertices values in a set in order to eliminate duplicates
 		std::set<float> x, y, z;
 
 		for (int i = 0; i < attrib.vertices.size(); i = i + 3)
@@ -572,18 +570,19 @@ protected:
 			z.insert(attrib.vertices[i + 2]);
 		}
 
-		hitBox[0] = std::vector<float>(x.begin(), x.end());
-		hitBox[1] = std::vector<float>(y.begin(), y.end());
-		hitBox[2] = std::vector<float>(z.begin(), z.end());
+		//Save only first and last element of the sets 
+		_hitBox.x = glm::vec2(*x.begin(), *--x.end());
+		_hitBox.y = glm::vec2(*y.begin(), *--y.end());
+		_hitBox.z = glm::vec2(*z.begin(), *--z.end());
 
 		std::cout << "bird hit box loaded";
 	}
 
-	std::vector<glm::vec2> getHitBox() {
-		std::vector<glm::vec2> box;
-		box.push_back(glm::vec2(birdPos.x - abs(hitBox[0][0]), birdPos.x + abs(hitBox[0][1])));
-		box.push_back(glm::vec2(birdPos.y - abs(hitBox[1][0]), birdPos.y + abs(hitBox[1][1])));
-		box.push_back(glm::vec2(birdPos.z - abs(hitBox[2][0]), birdPos.z + abs(hitBox[2][1])));
+	HitBox_t getHitBox() {
+		HitBox_t box;
+		box.x = glm::vec2(birdPos.x - abs(_hitBox.x[0]),	birdPos.x + abs(_hitBox.x[1]));
+		box.y = glm::vec2(birdPos.y - abs(_hitBox.y[0]),	birdPos.y + abs(_hitBox.y[1]));
+		box.z = glm::vec2(birdPos.z - abs(_hitBox.z[0]),	birdPos.z + abs(_hitBox.z[1]));
 		return box;
 	}
 };
@@ -601,7 +600,6 @@ protected:
 
 public:
 	std::string HitBoxObj;
-
 
 
 	void setHitBox(std::string HitBoxPath) {
@@ -638,6 +636,13 @@ public:
 
 	HitBox_t getHitBox() {
 		return _hitBox;
+	}
+
+	bool hasCollided(HitBox_t otherObject) override {
+		if (!_onScreen) {
+			return false;
+		}
+
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -1206,18 +1211,18 @@ protected:
 
 	void handleCollision()
 	{
-		std::vector<glm::vec2> birdHitBox = birds.at(birdInCannon)->getHitBox();
+		HitBox_t birdHitBox = birds.at(birdInCannon)->getHitBox();
 		bool x, y, z;
 
 		for (Pig *pig : pigsHitBox) {
 			x = false; y = false; z = false;
 			HitBox_t pigHitBox = pig->getHitBox();
 
-			if ((birdHitBox[0][0] > pigHitBox.x[0] && birdHitBox[0][0] < pigHitBox.x[1]) || (birdHitBox[0][1] > pigHitBox.x[0] && birdHitBox[0][1] < pigHitBox.x[1]))
+			if ((birdHitBox.x[0] > pigHitBox.x[0] && birdHitBox.x[0] < pigHitBox.x[1]) || (birdHitBox.x[1] > pigHitBox.x[0] && birdHitBox.x[1] < pigHitBox.x[1]))
 				x = true;
-			if ((birdHitBox[1][0] > pigHitBox.y[0] && birdHitBox[1][0] < pigHitBox.y[1]) || (birdHitBox[1][1] > pigHitBox.y[0] && birdHitBox[1][1] < pigHitBox.y[1]))
+			if ((birdHitBox.y[0] > pigHitBox.y[0] && birdHitBox.y[0] < pigHitBox.y[1]) || (birdHitBox.y[1] > pigHitBox.y[0] && birdHitBox.y[1] < pigHitBox.y[1]))
 				y = true;
-			if ((birdHitBox[2][0] > pigHitBox.z[0] && birdHitBox[2][0] < pigHitBox.z[1]) || (birdHitBox[2][1] > pigHitBox.z[0] && birdHitBox[2][1] < pigHitBox.z[1]))
+			if ((birdHitBox.z[0] > pigHitBox.z[0] && birdHitBox.z[0] < pigHitBox.z[1]) || (birdHitBox.z[1] > pigHitBox.z[0] && birdHitBox.z[1] < pigHitBox.z[1]))
 				z = true;
 
 			if (x && y && z) {
@@ -1231,14 +1236,14 @@ protected:
 
 		for (Decoration *decor : decorHitBox)
 		{
-			std::vector <std::vector<glm::vec2>> decorHitBoxes = decor->getHitBox();
-			for (std::vector<glm::vec2> HitBox : decorHitBoxes) {
+			std::vector <HitBox_t> decorHitBoxes = decor->getHitBox();
+			for (HitBox_t HitBox : decorHitBoxes) {
 				x = false; y = false; z = false;
-				if ((birdHitBox[0][0] > HitBox[0][0] && birdHitBox[0][0] < HitBox[0][1]) || (birdHitBox[0][1] > HitBox[0][0] && birdHitBox[0][1] < HitBox[0][1]))
+				if ((birdHitBox.x[0] > HitBox.x[0] && birdHitBox.x[0] < HitBox.x[1]) || (birdHitBox.x[1] > HitBox.x[0] && birdHitBox.x[1] < HitBox.x[1]))
 					x = true;
-				if ((birdHitBox[1][0] > HitBox[1][0] && birdHitBox[1][0] < HitBox[1][1]) || (birdHitBox[1][1] > HitBox[1][0] && birdHitBox[1][1] < HitBox[1][1]))
+				if ((birdHitBox.y[0] > HitBox.y[0] && birdHitBox.y[0] < HitBox.y[1]) || (birdHitBox.y[1] > HitBox.y[0] && birdHitBox.y[1] < HitBox.y[1]))
 					y = true;
-				if ((birdHitBox[2][0] > HitBox[2][0] && birdHitBox[2][0] < HitBox[2][1]) || (birdHitBox[2][1] > HitBox[2][0] && birdHitBox[2][1] < HitBox[2][1]))
+				if ((birdHitBox.z[0] > HitBox.z[0] && birdHitBox.z[0] < HitBox.z[1]) || (birdHitBox.z[1] > HitBox.z[0] && birdHitBox.z[1] < HitBox.z[1]))
 					z = true;
 
 				if (x && y && z) {
