@@ -170,7 +170,7 @@ public:
 
 	virtual bool hasCollided(HitBox_t otherObject) { return false; };
 
-	virtual void hit(glm::vec3 position) { return; };
+	virtual void hit(glm::vec3 pos) { return; };
 };
 
 class Bird :public GameObject {
@@ -298,7 +298,7 @@ public:
 		std::cout << "bird hit box loaded";
 	}
 
-	void hit(glm::vec3 position) override {
+	void hit(glm::vec3 pos) override {
 		isJumping = false;
 		birdPos.y = 0.0f;
 		this->hide();
@@ -314,13 +314,21 @@ public:
 	}
 };
 
+class BirdBlue : public Bird {};
+
+class BirdRed : public Bird {};
+
+class BirdYellow : public Bird {};
+
+class BirdPink : public Bird {};
+
 class Effect : public GameObject {
 protected:
 	glm::vec3 _position = glm::vec3(0.0f);
 	glm::vec3 _rotation = glm::vec3(0.0f);
 	glm::vec3 _scale = glm::vec3(0.0f);
-	const float ROT_SPEED = 10.0f;
-	const float SCALE_SPEED = 0.2f;
+	const float ROT_SPEED = 20.0f;
+	const float SCALE_SPEED = 0.04f;
 	bool _growing = false;
 
 
@@ -332,16 +340,17 @@ public:
 		_position = position;
 		_scale = glm::vec3(0.0f);
 		_rotation = glm::vec3(0.0f);
+		_growing = true;
 	}
 
 	void grow() {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		_rotation = _rotation += glm::vec3(glm::radians(ROT_SPEED * deltaT));
-		_scale = _scale += glm::vec3(SCALE_SPEED * deltaT);
-		//if (_scale.x > 20.0f) {
-		//	_growing = false;
-		//	//hide();
-		//}
+		_rotation += glm::vec3(glm::radians(ROT_SPEED * deltaT));
+		_scale += glm::vec3(SCALE_SPEED * deltaT);
+		if (_scale.x > 0.05f) {
+			_growing = false;
+			hide();
+		}
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -356,14 +365,6 @@ public:
 		return ubo;
 	}
 };
-class BirdBlue : public Bird {};
-
-class BirdRed : public Bird {};
-
-class BirdYellow : public Bird {};
-
-class BirdPink : public Bird {};
-
 
 
 //Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
@@ -691,8 +692,7 @@ public:
 		return false;
 	}
 
-	void hit(glm::vec3 position) override {
-		//TODO: insert here animations for hit against decorations 
+	void hit(glm::vec3 pos) override {
 		std::cout << "DECORATION HIT\n";
 	}
 
@@ -761,9 +761,9 @@ public:
 		return (x && y && z);
 	}
 
-	void hit(glm::vec3 position) override {
+	void hit(glm::vec3 pos) override {
 		Effect* boom = GameMaster::GetInstance()->getBoomEffect();
-		boom->pop(position);
+		boom->pop(pos);
 		std::cout << "HIT PIG " << this << "\n";
 		this->hide();
 	}
@@ -1101,6 +1101,9 @@ protected:
 		trajectorySpheres.push_back(&sphere9);
 		cannonTop.setTrajectory(&trajectorySpheres);
 		cannonTop.computeTrajectory();
+
+		//----------- Effects
+		GameMaster::GetInstance()->setBoomEffect(&boom);
 	}
 
 	void loadHitBoxes() {
@@ -1230,15 +1233,15 @@ protected:
 
 		A_PigMechanics.init(this, "/PigCustom/PigMechanic.obj", "/texture.png", &DSLobj);
 		pigShipMini.init(this, &DSLobj, &A_PigMechanics);
-//		pigShipMini.showOnScreen();
+		pigShipMini.showOnScreen();
 
 		A_PigStache.init(this, "/PigCustom/PigStache.obj", "/texture.png", &DSLobj);
 		pigCitySky.init(this, &DSLobj, &A_PigStache);
-//		pigCitySky.showOnScreen();
+		pigCitySky.showOnScreen();
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		terrain.init(this, &DSLobj, &A_Terrain);
-//		terrain.showOnScreen();
+		terrain.showOnScreen();
 
 		A_CannonBot.init(this, "/Cannon/BotCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		cannonBot.init(this, &DSLobj, &A_CannonBot);
@@ -1256,36 +1259,34 @@ protected:
 
 		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
 		towerSiege.init(this, &DSLobj, &A_TowerSiege);
-//		towerSiege.showOnScreen();
+		towerSiege.showOnScreen();
 
 		A_Baloon.init(this, "/Decorations/Baloon.obj", "/Decorations/Baloon.png", &DSLobj);
 		baloon.init(this, &DSLobj, &A_Baloon);
-//		baloon.showOnScreen();
+		baloon.showOnScreen();
 
 		A_SeaCity25.init(this, "/Decorations/SeaCity25.obj", "/Decorations/SeaCity25.png", &DSLobj);
 		seaCity25.init(this, &DSLobj, &A_SeaCity25);
-//		seaCity25.showOnScreen();
+		seaCity25.showOnScreen();
 
 		A_SeaCity37.init(this, "/Decorations/SeaCity37.obj", "/Decorations/SeaCity37.png", &DSLobj);
 		seaCity37.init(this, &DSLobj, &A_SeaCity37);
-//		seaCity37.showOnScreen();
+		seaCity37.showOnScreen();
 
 		A_ShipSmall.init(this, "/Decorations/ShipSmall.obj", "/Decorations/ShipSmall.png", &DSLobj);
 		shipSmall.init(this, &DSLobj, &A_ShipSmall);
-//		shipSmall.showOnScreen();
+		shipSmall.showOnScreen();
 
 		A_ShipVikings.init(this, "/Decorations/ShipVikings.obj", "/Decorations/ShipVikings.png", &DSLobj);
 		shipVikings.init(this, &DSLobj, &A_ShipVikings);
-//		shipVikings.showOnScreen();
+		shipVikings.showOnScreen();
 
 		A_SkyCity.init(this, "/Decorations/SkyCity.obj", "/Decorations/SkyCity.png", &DSLobj);
 		skyCity.init(this, &DSLobj, &A_SkyCity);
-//		skyCity.showOnScreen();
+		skyCity.showOnScreen();
 
 		A_Boom.init(this, "/Effects/Boom.obj", "/Effects/boom_lambert1_BaseColor.jpeg", &DSLobj);
 		boom.init(this, &DSLobj, &A_Boom);
-		GameMaster::GetInstance()->setBoomEffect(&boom);
-		boom.showOnScreen();
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -1400,6 +1401,9 @@ protected:
 		 A_ShipVikings.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_TowerSiege.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+
+		 // ---------------------- EFFECTS -----------------------------
+		 A_Boom.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 
 	}
 
@@ -1448,8 +1452,8 @@ void GameMaster::handleCollision(Bird* movingObject) {
 	HitBox_t hitBoxMove = movingObject->getHitBox();
 	for (auto const& obj : onScene) {
 		if (obj->hasCollided(hitBoxMove)) {
-			obj->hit();
-			movingObject->hit();
+			obj->hit(movingObject->getPosition());
+			movingObject->hit(movingObject->getPosition());
 			((CannonTop *)cannon)->setNextBird();
 			return;
 		}
