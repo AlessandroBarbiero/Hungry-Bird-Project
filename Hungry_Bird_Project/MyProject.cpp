@@ -516,7 +516,7 @@ public:
 
 	// update before rendering
 	UniformBufferObject update(UniformBufferObject ubo) {
-		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(50.0f, 50.0f, 50.0f));
+		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(60.0f, 60.0f, 60.0f));
 		return ubo;
 	}
 
@@ -1166,6 +1166,11 @@ protected:
 		// --------------------- MAP
 
 		std::vector<std::string> terrainHitBoxes;
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Far.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Near.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Right.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Left.obj");
+		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Sky.obj");
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Sea.obj");
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock1.obj");
 		terrainHitBoxes.push_back(HITBOXDEC_PATH + "/Rock2.obj");
