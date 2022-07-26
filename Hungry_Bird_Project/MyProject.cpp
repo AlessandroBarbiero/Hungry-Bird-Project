@@ -183,7 +183,7 @@ protected:
 
 	const float ROT_SPEED = 60.0f;
 
-	bool isActive = false;
+	bool isReady = false;
 
 	bool isJumping = false;
 	float v0;
@@ -239,24 +239,29 @@ public:
 		this->birdAng.y = angY;
 		this->shootAng = angY;
 		this->isJumping = true;
+		this->isReady = false;
 		this->startJumpTime = glfwGetTime();
 	}
 
 	void showStat(int i) {
 		std::cout << "----- Bird in " << i << "----- " << std::endl;
-		std::cout << "Active: " << isActive << std::endl;
+		std::cout << "Active: " << isReady << std::endl;
 		std::cout << "Position: " << birdPos.x << " " << birdPos.y << " " << birdPos.z << std::endl;
 		std::cout << "-----------------------------" << std::endl;
 	}
 
-	void setActive() {
-		isActive = true;
+	void setReady() {
+		isReady = true;
 		startPos = CANNON_TOP_POS;
 		birdPos = CANNON_TOP_POS;
 	}
 
 	glm::vec3 getPosition() {
 		return birdPos;
+	}
+	
+	bool getIsReady() {
+		return isReady;
 	}
 
 	void setHitBox(std::string HitBoxPath) {
@@ -351,6 +356,15 @@ public:
 		return ubo;
 	}
 };
+class BirdBlue : public Bird {};
+
+class BirdRed : public Bird {};
+
+class BirdYellow : public Bird {};
+
+class BirdPink : public Bird {};
+
+
 
 //Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
 class GameMaster
@@ -362,6 +376,7 @@ protected:
 	static GameMaster* singleton_;
 	std::list<GameObject*> onScene;
 	Effect* boomEffect;
+	GameObject* cannon;
 
 public:
 
@@ -377,6 +392,10 @@ public:
 
 	Effect* getBoomEffect() {
 		return boomEffect;
+	}
+	
+	void setCannon(GameObject* cannonTop) {
+		cannon = cannonTop;
 	}
 
 	void Attach(GameObject* observer) {
@@ -683,13 +702,6 @@ public:
 	}
 };
 
-class BirdBlue :public Bird {
-
-};
-
-class BirdYellow : public Bird {
-};
-
 class Pig :public GameObject {
 protected:
 	HitBox_t _hitBox;
@@ -808,15 +820,33 @@ class CannonTop : public GameObject {
 
 	float v0 = 10.0f;
 
-	Bird *bird;
+	std::vector<Bird *> *birds;
+	int birdLoaded = 0;
 	std::vector<WhiteSphere*> *trajectory;
 
-	const float ROT_SPEED = 60.0f;
+	float ROT_SPEED = 600.0f/v0;
 	const float POWER = 10.0f;
 
 	public:
-	void setBird(Bird *birdToLoad) {
-		bird = birdToLoad;
+	void setBirds(std::vector<Bird*>* birdsToLoad) {
+		birds = birdsToLoad;
+	}
+
+	Bird* getCurrentBird() {
+		return birds->at(birdLoaded);
+	}
+
+	void setBirdReady() {
+		birds->at(birdLoaded)->setReady();
+	}
+
+	void setBirdLoaded(int index) {
+		birdLoaded = index;
+	}
+
+	void setNextBird() {
+		birdLoaded = (birdLoaded + 1) % birds->size();
+		setBirdReady();
 	}
 
 	void setTrajectory(std::vector<WhiteSphere*>* trajectoryBlocks) {
@@ -824,8 +854,11 @@ class CannonTop : public GameObject {
 	}
 
 	void shoot() {
-		bird->startJump(v0, cannonAng.y, cannonAng.x);
-		bird->showOnScreen();
+		Bird* bird = birds->at(birdLoaded);
+		if (bird->getIsReady()) {
+			bird->startJump(v0, cannonAng.y, cannonAng.x);
+			bird->showOnScreen();
+		}
 	}
 
 	void computeTrajectory() {
@@ -872,16 +905,27 @@ class CannonTop : public GameObject {
 				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_Q)) {
-				if (v0 > 0) {
+				if (v0 > 5.5f) {
 					v0 -= POWER * deltaT;
+					ROT_SPEED = 600.0f / v0;
 				}
 				else {
-					v0 = 0;
+					v0 = 5.5f;
+					ROT_SPEED = 600.0f / v0;
 				}
 				computeTrajectory();
 			}
 			if (glfwGetKey(window, GLFW_KEY_E)) {
-				v0 += POWER * deltaT;
+				if (v0 < 26)
+				{
+					v0 += POWER * deltaT;
+					ROT_SPEED = 600.0f / v0;
+				}
+				else {
+					v0 = 26;
+					ROT_SPEED = 600.0f / v0;
+				}
+
 				computeTrajectory();
 			}
 		}
@@ -917,13 +961,25 @@ protected:
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 
+	//-------------- BIRDS
+
 	Asset A_BlueBird;
-	BirdBlue bird1, bird2, bird3;
+	BirdBlue birdBlue;
+
+	Asset A_RedBird;
+	BirdRed birdRed;
+
+	Asset A_YellowBird;
+	BirdYellow birdYellow;
+
+	Asset A_PinkBird;
+	BirdPink birdPink;
+
 
 	std::vector<Bird *> birds;
 	int birdInCannon = 0;
 
-	//--------------PIGS
+	//-------------- PIGS
 	Asset A_PigStd;
 	Pig pigStd;
 
@@ -1021,13 +1077,16 @@ protected:
 		cCamera->NextView();
 
 		// -------------- Load BIRDS in the cannon
-		birds.push_back(&bird1);
-		birds.push_back(&bird2);
-		birds.push_back(&bird3);
+		birds.push_back(&birdBlue);
+		birds.push_back(&birdRed);
+		birds.push_back(&birdYellow);
+		birds.push_back(&birdPink);
 
-		birdInCannon = 0;
-		birds.at(birdInCannon)->setActive();
-		cannonTop.setBird(birds.at(birdInCannon));
+		cannonTop.setBirds(&birds);
+		cannonTop.setBirdReady();
+		cannonTop.setBirdLoaded(0);
+
+		GameMaster::GetInstance()->setCannon(&cannonTop);
 
 		// ------------ Trajectory
 		trajectorySpheres.push_back(&sphere0);
@@ -1058,7 +1117,12 @@ protected:
 
 		pigShipMini.setHitBox(MODEL_PATH + "/PigCustom/PigMechanicHB.obj");
 
-		bird1.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+		birdBlue.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+
+		birdRed.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+		birdYellow.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+		birdPink.setHitBox(MODEL_PATH + "/Birds/bluesHitBox.obj");
+
 
 		// --------------------- MAP
 
@@ -1137,9 +1201,16 @@ protected:
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		A_BlueBird.init(this, "/Birds/blues.obj", "/texture.png", &DSLobj);
-		for (Bird *bird : birds) {
-			bird->init(this, &DSLobj, &A_BlueBird);
-		}
+		birdBlue.init(this, &DSLobj, &A_BlueBird);
+
+		A_RedBird.init(this, "/Birds/red.obj", "/texture.png", &DSLobj);
+		birdRed.init(this, &DSLobj, &A_RedBird);
+
+		A_YellowBird.init(this, "/Birds/chuck.obj", "/texture.png", &DSLobj);
+		birdYellow.init(this, &DSLobj, &A_YellowBird);
+
+		A_PinkBird.init(this, "/Birds/stella.obj", "/texture.png", &DSLobj);
+		birdPink.init(this, &DSLobj, &A_PinkBird);
 
 		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
 		pigStd.init(this, &DSLobj, &A_PigStd);
@@ -1228,6 +1299,9 @@ protected:
 	void localCleanup() {
 
 		A_BlueBird.cleanup();
+		A_RedBird.cleanup();
+		A_YellowBird.cleanup();
+		A_PinkBird.cleanup();
 
 		A_PigStd.cleanup();
 		A_PigHelmet.cleanup();
@@ -1292,6 +1366,9 @@ protected:
 		// ---------------------- BIRD BLUES ------------
 
 		A_BlueBird.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_RedBird.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_YellowBird.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_PinkBird.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 		// ------------------------ PIG --------------------
 
@@ -1361,7 +1438,7 @@ protected:
 
 
 		// ------------------------------ COLLISION
-		GameMaster::GetInstance()->handleCollision(birds.at(birdInCannon));
+		GameMaster::GetInstance()->handleCollision(cannonTop.getCurrentBird());
 	}
 
 
@@ -1371,8 +1448,9 @@ void GameMaster::handleCollision(Bird* movingObject) {
 	HitBox_t hitBoxMove = movingObject->getHitBox();
 	for (auto const& obj : onScene) {
 		if (obj->hasCollided(hitBoxMove)) {
-			obj->hit(movingObject->getPosition());
-			movingObject->hit(movingObject->getPosition());
+			obj->hit();
+			movingObject->hit();
+			((CannonTop *)cannon)->setNextBird();
 			return;
 		}
 	}
