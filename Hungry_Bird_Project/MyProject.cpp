@@ -19,7 +19,7 @@ typedef struct HitBox_s {
 	glm::vec2 x, y, z;
 }HitBox_t;
 
-// Switch between the two controller mode to choose what to move using wasd keys
+// Switch between the two controller modes to choose what to move using wasd keys
 enum GameController {
 	CameraMovement,
 	CannonMovement
@@ -170,7 +170,7 @@ public:
 
 	virtual bool hasCollided(HitBox_t otherObject) { return false; };
 
-	virtual void hit() { return; };
+	virtual void hit(glm::vec3 position) { return; };
 };
 
 class Bird :public GameObject {
@@ -255,6 +255,10 @@ public:
 		birdPos = CANNON_TOP_POS;
 	}
 
+	glm::vec3 getPosition() {
+		return birdPos;
+	}
+
 	void setHitBox(std::string HitBoxPath) {
 		HitBoxObj = HitBoxPath;
 		loadHitBox();
@@ -289,7 +293,7 @@ public:
 		std::cout << "bird hit box loaded";
 	}
 
-	void hit() override {
+	void hit(glm::vec3 position) override {
 		isJumping = false;
 		birdPos.y = 0.0f;
 		this->hide();
@@ -305,6 +309,49 @@ public:
 	}
 };
 
+class Effect : public GameObject {
+protected:
+	glm::vec3 _position = glm::vec3(0.0f);
+	glm::vec3 _rotation = glm::vec3(0.0f);
+	glm::vec3 _scale = glm::vec3(0.0f);
+	const float ROT_SPEED = 10.0f;
+	const float SCALE_SPEED = 0.2f;
+	bool _growing = false;
+
+
+public:
+
+	//Show the effect in the position passed, it start as invisible and grow while rotate
+	void pop(glm::vec3 position) {
+		_onScreen = true;
+		_position = position;
+		_scale = glm::vec3(0.0f);
+		_rotation = glm::vec3(0.0f);
+	}
+
+	void grow() {
+		float deltaT = GameTime::GetInstance()->getDelta();
+		_rotation = _rotation += glm::vec3(glm::radians(ROT_SPEED * deltaT));
+		_scale = _scale += glm::vec3(SCALE_SPEED * deltaT);
+		//if (_scale.x > 20.0f) {
+		//	_growing = false;
+		//	//hide();
+		//}
+	}
+
+	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
+		if (_growing) {
+			grow();
+		}
+
+		ubo.model = glm::translate(glm::mat4(1.0f), _position) *
+			glm::rotate(glm::mat4(1.0f), glm::radians(_rotation.x), glm::vec3(0.0f, 1.0f, 0.0f)) *
+			glm::rotate(glm::mat4(1.0f), glm::radians(_rotation.y), glm::vec3(1.0f, 0.0f, 0.0f)) *
+			glm::scale(glm::mat4(1.0f), _scale);
+		return ubo;
+	}
+};
+
 //Observable Singleton class that updates each object onScene every cycle, the GameObjects have to Attach or Detach to it if onScene or not
 class GameMaster
 {
@@ -314,6 +361,7 @@ protected:
 
 	static GameMaster* singleton_;
 	std::list<GameObject*> onScene;
+	Effect* boomEffect;
 
 public:
 
@@ -322,6 +370,14 @@ public:
 	void operator=(const GameMaster&) = delete;
 
 	static GameMaster* GetInstance();
+
+	void setBoomEffect(Effect* boom) {
+		boomEffect = boom;
+	}
+
+	Effect* getBoomEffect() {
+		return boomEffect;
+	}
 
 	void Attach(GameObject* observer) {
 		onScene.push_back(observer);
@@ -616,7 +672,7 @@ public:
 		return false;
 	}
 
-	void hit() override {
+	void hit(glm::vec3 position) override {
 		//TODO: insert here animations for hit against decorations 
 		std::cout << "DECORATION HIT\n";
 	}
@@ -693,8 +749,9 @@ public:
 		return (x && y && z);
 	}
 
-	void hit() override {
-		//TODO: insert here animations for hit against pigs 
+	void hit(glm::vec3 position) override {
+		Effect* boom = GameMaster::GetInstance()->getBoomEffect();
+		boom->pop(position);
 		std::cout << "HIT PIG " << this << "\n";
 		this->hide();
 	}
@@ -897,6 +954,12 @@ protected:
 	std::vector<WhiteSphere *> trajectorySpheres;
 
 
+	//----------EFFECTS
+
+	Asset A_Boom;
+	Effect boom;
+
+
 	//Decorations Assets and GO
 	Asset A_Terrain;
 	Decoration terrain;
@@ -1096,15 +1159,15 @@ protected:
 
 		A_PigMechanics.init(this, "/PigCustom/PigMechanic.obj", "/texture.png", &DSLobj);
 		pigShipMini.init(this, &DSLobj, &A_PigMechanics);
-		pigShipMini.showOnScreen();
+//		pigShipMini.showOnScreen();
 
 		A_PigStache.init(this, "/PigCustom/PigStache.obj", "/texture.png", &DSLobj);
 		pigCitySky.init(this, &DSLobj, &A_PigStache);
-		pigCitySky.showOnScreen();
+//		pigCitySky.showOnScreen();
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		terrain.init(this, &DSLobj, &A_Terrain);
-		terrain.showOnScreen();
+//		terrain.showOnScreen();
 
 		A_CannonBot.init(this, "/Cannon/BotCannon.obj", "/Cannon/map_CP_001.001_BaseColorRedBird.png", &DSLobj);
 		cannonBot.init(this, &DSLobj, &A_CannonBot);
@@ -1122,31 +1185,36 @@ protected:
 
 		A_TowerSiege.init(this, "/Decorations/TowerSiege.obj", "/Decorations/TowerSiege.png", &DSLobj);
 		towerSiege.init(this, &DSLobj, &A_TowerSiege);
-		towerSiege.showOnScreen();
+//		towerSiege.showOnScreen();
 
 		A_Baloon.init(this, "/Decorations/Baloon.obj", "/Decorations/Baloon.png", &DSLobj);
 		baloon.init(this, &DSLobj, &A_Baloon);
-		baloon.showOnScreen();
+//		baloon.showOnScreen();
 
 		A_SeaCity25.init(this, "/Decorations/SeaCity25.obj", "/Decorations/SeaCity25.png", &DSLobj);
 		seaCity25.init(this, &DSLobj, &A_SeaCity25);
-		seaCity25.showOnScreen();
+//		seaCity25.showOnScreen();
 
 		A_SeaCity37.init(this, "/Decorations/SeaCity37.obj", "/Decorations/SeaCity37.png", &DSLobj);
 		seaCity37.init(this, &DSLobj, &A_SeaCity37);
-		seaCity37.showOnScreen();
+//		seaCity37.showOnScreen();
 
 		A_ShipSmall.init(this, "/Decorations/ShipSmall.obj", "/Decorations/ShipSmall.png", &DSLobj);
 		shipSmall.init(this, &DSLobj, &A_ShipSmall);
-		shipSmall.showOnScreen();
+//		shipSmall.showOnScreen();
 
 		A_ShipVikings.init(this, "/Decorations/ShipVikings.obj", "/Decorations/ShipVikings.png", &DSLobj);
 		shipVikings.init(this, &DSLobj, &A_ShipVikings);
-		shipVikings.showOnScreen();
+//		shipVikings.showOnScreen();
 
 		A_SkyCity.init(this, "/Decorations/SkyCity.obj", "/Decorations/SkyCity.png", &DSLobj);
 		skyCity.init(this, &DSLobj, &A_SkyCity);
-		skyCity.showOnScreen();
+//		skyCity.showOnScreen();
+
+		A_Boom.init(this, "/Effects/Boom.obj", "/Effects/boom_lambert1_BaseColor.jpeg", &DSLobj);
+		boom.init(this, &DSLobj, &A_Boom);
+		GameMaster::GetInstance()->setBoomEffect(&boom);
+		boom.showOnScreen();
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
@@ -1175,6 +1243,9 @@ protected:
 		A_CannonTop.cleanup();
 
 		A_Sphere.cleanup();
+
+		//Effects
+		A_Boom.cleanup();
 
 		//Decorations
 		A_Baloon.cleanup();
@@ -1300,8 +1371,8 @@ void GameMaster::handleCollision(Bird* movingObject) {
 	HitBox_t hitBoxMove = movingObject->getHitBox();
 	for (auto const& obj : onScene) {
 		if (obj->hasCollided(hitBoxMove)) {
-			obj->hit();
-			movingObject->hit();
+			obj->hit(movingObject->getPosition());
+			movingObject->hit(movingObject->getPosition());
 			return;
 		}
 	}
