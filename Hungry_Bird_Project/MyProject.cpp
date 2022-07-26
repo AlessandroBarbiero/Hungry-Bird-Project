@@ -327,12 +327,19 @@ protected:
 	glm::vec3 _position = glm::vec3(0.0f);
 	glm::vec3 _rotation = glm::vec3(0.0f);
 	glm::vec3 _scale = glm::vec3(0.0f);
-	const float ROT_SPEED = 20.0f;
-	const float SCALE_SPEED = 0.04f;
+	float ROT_SPEED;
+	float SCALE_SPEED;
+	float MAX_SCALE;
 	bool _growing = false;
 
 
 public:
+
+	Effect(const float rot_speed, const float scale_speed, const float max_scale) {
+		ROT_SPEED = rot_speed;
+		SCALE_SPEED = scale_speed;
+		MAX_SCALE = max_scale;
+	}
 
 	//Show the effect in the position passed, it start as invisible and grow while rotate
 	void pop(glm::vec3 position) {
@@ -347,7 +354,7 @@ public:
 		float deltaT = GameTime::GetInstance()->getDelta();
 		_rotation += glm::vec3(glm::radians(ROT_SPEED * deltaT));
 		_scale += glm::vec3(SCALE_SPEED * deltaT);
-		if (_scale.x > 0.05f) {
+		if (_scale.x > MAX_SCALE) {
 			_growing = false;
 			hide();
 		}
@@ -1013,8 +1020,7 @@ protected:
 	//----------EFFECTS
 
 	Asset A_Boom;
-	Effect boom;
-
+	Effect* boom = new Effect(20.0f, 0.04f, 0.05f);
 
 	//Decorations Assets and GO
 	Asset A_Terrain;
@@ -1103,7 +1109,7 @@ protected:
 		cannonTop.computeTrajectory();
 
 		//----------- Effects
-		GameMaster::GetInstance()->setBoomEffect(&boom);
+		GameMaster::GetInstance()->setBoomEffect(boom);
 	}
 
 	void loadHitBoxes() {
@@ -1286,7 +1292,7 @@ protected:
 		skyCity.showOnScreen();
 
 		A_Boom.init(this, "/Effects/Boom.obj", "/Effects/boom_lambert1_BaseColor.jpeg", &DSLobj);
-		boom.init(this, &DSLobj, &A_Boom);
+		boom->init(this, &DSLobj, &A_Boom);
 
 		skyBox.init(this, DSLobj, DSLglobal);
 
