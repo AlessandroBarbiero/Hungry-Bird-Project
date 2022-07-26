@@ -346,13 +346,13 @@ public:
 		_onScreen = true;
 		_position = position;
 		_scale = glm::vec3(0.0f);
-		_rotation = glm::vec3(0.0f);
+		_rotation = glm::vec3(180.0f,0.0f, 0.0f);
 		_growing = true;
 	}
 
 	void grow() {
 		float deltaT = GameTime::GetInstance()->getDelta();
-		_rotation += glm::vec3(glm::radians(ROT_SPEED * deltaT));
+		_rotation += glm::vec3(ROT_SPEED * deltaT, -ROT_SPEED * deltaT, 0.0f);
 		_scale += glm::vec3(SCALE_SPEED * deltaT);
 		if (_scale.x > MAX_SCALE) {
 			_growing = false;
@@ -384,6 +384,8 @@ protected:
 	static GameMaster* singleton_;
 	std::list<GameObject*> onScene;
 	Effect* boomEffect;
+	Effect* hitEffect;
+	Effect* missEffect;
 	GameObject* cannon;
 
 public:
@@ -400,6 +402,22 @@ public:
 
 	Effect* getBoomEffect() {
 		return boomEffect;
+	}
+
+	void setHitEffect(Effect* hit) {
+		hitEffect = hit;
+	}
+
+	Effect* getHitEffect() {
+		return hitEffect;
+	}
+
+	void setMissEffect(Effect* miss) {
+		missEffect = miss;
+	}
+
+	Effect* getMissEffect() {
+		return missEffect;
 	}
 	
 	void setCannon(GameObject* cannonTop) {
@@ -700,6 +718,8 @@ public:
 	}
 
 	void hit(glm::vec3 pos) override {
+		Effect* miss = GameMaster::GetInstance()->getMissEffect();
+		miss->pop(pos);
 		std::cout << "DECORATION HIT\n";
 	}
 
@@ -769,8 +789,8 @@ public:
 	}
 
 	void hit(glm::vec3 pos) override {
-		Effect* boom = GameMaster::GetInstance()->getBoomEffect();
-		boom->pop(pos);
+		Effect* hit = GameMaster::GetInstance()->getHitEffect();
+		hit->pop(pos);
 		std::cout << "HIT PIG " << this << "\n";
 		this->hide();
 	}
@@ -865,6 +885,8 @@ class CannonTop : public GameObject {
 		if (bird->getIsReady()) {
 			bird->startJump(v0, cannonAng.y, cannonAng.x);
 			bird->showOnScreen();
+			Effect* boom = GameMaster::GetInstance()->getBoomEffect();
+			boom->pop(cannonPos + glm::vec3(0.0f, 1.0f, 0.0f));
 		}
 	}
 
@@ -1022,6 +1044,12 @@ protected:
 	Asset A_Boom;
 	Effect* boom = new Effect(20.0f, 0.04f, 0.05f);
 
+	Asset A_Hit;
+	Effect* hit = new Effect(20.0f, 1.0f, 1.0f);
+
+	Asset A_Miss;
+	Effect* miss = new Effect(20.0f, 1.0f, 1.0f);
+
 	//Decorations Assets and GO
 	Asset A_Terrain;
 	Decoration terrain;
@@ -1110,6 +1138,8 @@ protected:
 
 		//----------- Effects
 		GameMaster::GetInstance()->setBoomEffect(boom);
+		GameMaster::GetInstance()->setHitEffect(hit);
+		GameMaster::GetInstance()->setMissEffect(miss);
 	}
 
 	void loadHitBoxes() {
@@ -1294,6 +1324,12 @@ protected:
 		A_Boom.init(this, "/Effects/Boom.obj", "/Effects/boom_lambert1_BaseColor.jpeg", &DSLobj);
 		boom->init(this, &DSLobj, &A_Boom);
 
+		A_Hit.init(this, "/Effects/OK.obj", "/Effects/Ok_Texture.png", &DSLobj);
+		hit->init(this, &DSLobj, &A_Hit);
+
+		A_Miss.init(this, "/Effects/NO.obj", "/Effects/NO_Texture.png", &DSLobj);
+		miss->init(this, &DSLobj, &A_Miss);
+
 		skyBox.init(this, DSLobj, DSLglobal);
 
 
@@ -1327,6 +1363,8 @@ protected:
 
 		//Effects
 		A_Boom.cleanup();
+		A_Hit.cleanup();
+		A_Miss.cleanup();
 
 		//Decorations
 		A_Baloon.cleanup();
@@ -1410,6 +1448,8 @@ protected:
 
 		 // ---------------------- EFFECTS -----------------------------
 		 A_Boom.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_Hit.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_Miss.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 
 	}
 
