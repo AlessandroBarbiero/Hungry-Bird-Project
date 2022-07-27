@@ -89,6 +89,138 @@ GameTime* GameTime::GetInstance()
 	return singleton_;
 }
 
+class Camera {
+protected:
+	Camera()
+	{}
+
+	static Camera* singleton_;
+
+	glm::vec3 CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::mat4 CamDir;
+
+	const int MAX_VIEW = 4;
+	const float ROT_SPEED = glm::radians(60.0f);
+	const float MOVE_SPEED = 1.75f;
+
+	int currView = 0;
+
+public:
+	//Remove public methods for construction and modify of singleton
+	Camera(Camera& other) = delete;
+	void operator=(const Camera&) = delete;
+
+	static Camera* GetInstance();
+
+	glm::vec3 getCamAng() {
+		return CamAng;
+	}
+
+	// update the camera position and direction
+	glm::mat4 update(GLFWwindow* window) {
+		float deltaT = GameTime::GetInstance()->getDelta();
+		// Camera direction
+		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
+			CamAng.y += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_RIGHT)) {
+			CamAng.y -= deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_UP)) {
+			CamAng.x += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_DOWN)) {
+			CamAng.x -= deltaT * ROT_SPEED;
+		}
+
+		glm::mat3 CamEye = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
+			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
+
+		// Camera position
+		if (controller == CameraMovement) {
+			if (glfwGetKey(window, GLFW_KEY_A)) {
+				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_D)) {
+				CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_S)) {
+				CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_W)) {
+				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_F)) {
+				CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+			}
+			if (glfwGetKey(window, GLFW_KEY_R)) {
+				CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+			}
+		}
+
+		return CamDir = glm::translate(glm::transpose(glm::mat4(CamEye)), -CamPos);
+	}
+
+	void NextView() {
+		currView = (currView % MAX_VIEW) + 1;
+		ChangePositionAndAngular();
+	}
+
+	void SetView(int view) {
+		currView = view;
+		ChangePositionAndAngular();
+	}
+
+	void ShowStat() {
+		std::cout << "Valori pos: " << CamPos.x << " " << CamPos.y << " " << CamPos.z << std::endl;
+		std::cout << "Valori rot: " << CamAng.x << " " << CamAng.y << " " << CamAng.z << std::endl;
+	}
+
+private:
+	void ChangePositionAndAngular() {
+		switch (currView)
+		{
+		case 1:
+			CamPos = glm::vec3(-0.535644f, 15.9563f, -12.8586f);
+			CamAng = glm::vec3(-0.27987f, 3.2264f, 0.0f);
+			break;
+		case 2:
+			CamPos = glm::vec3(-7.24489f, 11.9762f, -5.34424f);
+			CamAng = glm::vec3(-0.189157f, 3.90985f, 0.0f);
+			break;
+		case 3:
+			CamPos = glm::vec3(2.14082f, 10.2845f, -6.47336f);
+			CamAng = glm::vec3(-0.0441803f, 2.72603f, 0.0f);
+			break;
+		case 4:
+			CamPos = glm::vec3(28.9848f, 27.9113f, -3.16643f);
+			CamAng = glm::vec3(-0.459889f, 2.18553f, 0.0f);
+			break;
+		default:
+			CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
+			CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
+			break;
+		}
+	}
+
+};
+
+Camera* Camera::singleton_ = nullptr;
+Camera* Camera::GetInstance()
+{
+	if (singleton_ == nullptr) {
+		singleton_ = new Camera();
+	}
+	return singleton_;
+}
+
+
 //Each object drawn on the screen need an Asset, it includes his model and texture
 class Asset {
 protected:
@@ -336,7 +468,7 @@ protected:
 public:
 
 	Effect(const float rot_speed, const float scale_speed, const float max_scale) {
-		ROT_SPEED = rot_speed;
+		ROT_SPEED = glm::radians(rot_speed);
 		SCALE_SPEED = scale_speed;
 		MAX_SCALE = max_scale;
 	}
@@ -346,7 +478,7 @@ public:
 		_onScreen = true;
 		_position = position;
 		_scale = glm::vec3(0.0f);
-		_rotation = glm::vec3(180.0f,0.0f, 0.0f);
+		_rotation = Camera::GetInstance()->getCamAng();
 		_growing = true;
 	}
 
@@ -366,8 +498,8 @@ public:
 		}
 
 		ubo.model = glm::translate(glm::mat4(1.0f), _position) *
-			glm::rotate(glm::mat4(1.0f), glm::radians(_rotation.x), glm::vec3(0.0f, 1.0f, 0.0f)) *
-			glm::rotate(glm::mat4(1.0f), glm::radians(_rotation.y), glm::vec3(1.0f, 0.0f, 0.0f)) *
+			glm::rotate(glm::mat4(1.0f), _rotation.y, glm::vec3(0.0f, 1.0f, 0.0f)) *
+			glm::rotate(glm::mat4(1.0f), _rotation.x, glm::vec3(1.0f, 0.0f, 0.0f)) *
 			glm::scale(glm::mat4(1.0f), _scale);
 		return ubo;
 	}
@@ -529,114 +661,6 @@ public:
 		vkUnmapMemory(device, DS_skyBox.uniformBuffersMemory[0][currentImage]);
 	}
 };
-
-class Camera {
-protected:
-	glm::vec3 CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
-	glm::vec3 CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
-	glm::mat4 CamDir;
-
-	const int MAX_VIEW = 4;
-	const float ROT_SPEED = glm::radians(60.0f);
-	const float MOVE_SPEED = 1.75f;
-
-	int currView = 0;
-
-public:
-	// update the camera position and direction
-	glm::mat4 update(GLFWwindow* window) {
-		float deltaT = GameTime::GetInstance()->getDelta();
-		// Camera direction
-		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
-			CamAng.y += deltaT * ROT_SPEED;
-		}
-		if (glfwGetKey(window, GLFW_KEY_RIGHT)) {
-			CamAng.y -= deltaT * ROT_SPEED;
-		}
-		if (glfwGetKey(window, GLFW_KEY_UP)) {
-			CamAng.x += deltaT * ROT_SPEED;
-		}
-		if (glfwGetKey(window, GLFW_KEY_DOWN)) {
-			CamAng.x -= deltaT * ROT_SPEED;
-		}
-
-		glm::mat3 CamEye = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
-			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
-			glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
-
-		// Camera position
-		if (controller==CameraMovement) {
-			if (glfwGetKey(window, GLFW_KEY_A)) {
-				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
-			}
-			if (glfwGetKey(window, GLFW_KEY_D)) {
-				CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
-			}
-			if (glfwGetKey(window, GLFW_KEY_S)) {
-				CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
-			}
-			if (glfwGetKey(window, GLFW_KEY_W)) {
-				CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
-					glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
-			}
-			if (glfwGetKey(window, GLFW_KEY_F)) {
-				CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
-			}
-			if (glfwGetKey(window, GLFW_KEY_R)) {
-				CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
-			}
-		}
-
-		return CamDir = glm::translate(glm::transpose(glm::mat4(CamEye)), -CamPos);
-	}
-
-	void NextView() {
-		currView = (currView % MAX_VIEW) + 1;
-		ChangePositionAndAngular();
-	}
-
-	void SetView(int view) {
-		currView = view;
-		ChangePositionAndAngular();
-	}
-
-	void ShowStat() {
-		std::cout << "Valori pos: " << CamPos.x << " " << CamPos.y << " " << CamPos.z << std::endl;
-		std::cout << "Valori rot: " << CamAng.x << " " << CamAng.y << " " << CamAng.z << std::endl;
-	}
-
-	private:
-	void ChangePositionAndAngular() {
-		switch (currView)
-		{
-		case 1:
-			CamPos = glm::vec3(-0.535644f, 15.9563f, -12.8586f);
-			CamAng = glm::vec3(-0.27987f, 3.2264f, 0.0f);
-			break;
-		case 2:
-			CamPos = glm::vec3(-7.24489f, 11.9762f, -5.34424f);
-			CamAng = glm::vec3(-0.189157f, 3.90985f, 0.0f);
-			break;
-		case 3:
-			CamPos = glm::vec3(2.14082f, 10.2845f, -6.47336f);
-			CamAng = glm::vec3(-0.0441803f, 2.72603f, 0.0f);
-			break;
-		case 4:
-			CamPos = glm::vec3(28.9848f, 27.9113f, -3.16643f);
-			CamAng = glm::vec3(-0.459889f, 2.18553f, 0.0f);
-			break;
-		default:
-			CamPos = glm::vec3(0.0f, 0.0f, 0.0f);
-			CamAng = glm::vec3(0.0f, 0.0f, 0.0f);
-			break;
-		}
-	}
-
-};
-
 //------------------ GAME OBJECTS --------------------
 
 class Decoration: public GameObject {
@@ -822,9 +846,14 @@ class CannonBot : public GameObject {
 	glm::vec3 cannonPos = CANNON_BOT_POS;
 	glm::vec3 cannonAng = glm::vec3(0.0f);
 
-	const float ROT_SPEED = 60.0f;
+	float ROT_SPEED = 60.0f;
 
-	public: 
+	public:
+
+	void setRotSpeed(float speed) {
+		ROT_SPEED = speed;
+	}
+
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
 		float deltaT = GameTime::GetInstance()->getDelta();
 		if (controller==CannonMovement) {
@@ -845,6 +874,8 @@ class CannonTop : public GameObject {
 	glm::vec3 cannonPos = CANNON_TOP_POS;
 	glm::vec3 cannonAng = glm::vec3(0.0f);
 
+	CannonBot* bot;
+
 	float v0 = 10.0f;
 
 	std::vector<Bird *> *birds;
@@ -855,6 +886,11 @@ class CannonTop : public GameObject {
 	const float POWER = 10.0f;
 
 	public:
+	void setBot(CannonBot* bottom) {
+			bot = bottom;
+			bot->setRotSpeed(ROT_SPEED);
+	}
+
 	void setBirds(std::vector<Bird*>* birdsToLoad) {
 		birds = birdsToLoad;
 	}
@@ -937,10 +973,12 @@ class CannonTop : public GameObject {
 				if (v0 > 5.5f) {
 					v0 -= POWER * deltaT;
 					ROT_SPEED = 600.0f / v0;
+					bot->setRotSpeed(ROT_SPEED);
 				}
 				else {
 					v0 = 5.5f;
 					ROT_SPEED = 600.0f / v0;
+					bot->setRotSpeed(ROT_SPEED);
 				}
 				computeTrajectory();
 			}
@@ -949,10 +987,12 @@ class CannonTop : public GameObject {
 				{
 					v0 += POWER * deltaT;
 					ROT_SPEED = 600.0f / v0;
+					bot->setRotSpeed(ROT_SPEED);
 				}
 				else {
 					v0 = 26;
 					ROT_SPEED = 600.0f / v0;
+					bot->setRotSpeed(ROT_SPEED);
 				}
 
 				computeTrajectory();
@@ -972,7 +1012,6 @@ class CannonTop : public GameObject {
 
 
 CannonTop *cTop;
-Camera* cCamera;
 // MAIN ! 
 class MyProject : public BaseProject {
 protected:
@@ -982,7 +1021,6 @@ protected:
 	DescriptorSetLayout DSLglobal;
 	DescriptorSetLayout DSLobj;
 
-	Camera camera;
 	SkyBox skyBox;
 
 	// Pipelines [Shader couples]
@@ -1104,11 +1142,10 @@ protected:
 	void setGameState() {
 		//set up callback for input
 		cTop = &cannonTop;
-		cCamera = &camera;
 
 		glfwSetKeyCallback(window, keyCallback);
 
-		cCamera->NextView();
+		Camera::GetInstance()->NextView();
 
 		// -------------- Load BIRDS in the cannon
 		birds.push_back(&birdBlue);
@@ -1119,6 +1156,7 @@ protected:
 		cannonTop.setBirds(&birds);
 		cannonTop.setBirdReady();
 		cannonTop.setBirdLoaded(0);
+		cannonTop.setBot(&cannonBot);
 
 		GameMaster::GetInstance()->setCannon(&cannonTop);
 
@@ -1470,7 +1508,7 @@ protected:
 
 		void* data;
 
-		gubo.view = camera.update(window);
+		gubo.view = Camera::GetInstance()->update(window);
 		gubo.proj = glm::perspective(glm::radians(45.0f),
 			swapChainExtent.width / (float)swapChainExtent.height,
 			0.1f, 200.0f);
@@ -1526,23 +1564,23 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		}
 	}
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
-		cCamera->NextView();
+		Camera::GetInstance()->NextView();
 	}
 	//to debug the position of the camera if we want to add new view
 	if (key == GLFW_KEY_L && action == GLFW_PRESS) {
-		cCamera->ShowStat();
+		Camera::GetInstance()->ShowStat();
 	}
 	if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
-		cCamera->SetView(1);
+		Camera::GetInstance()->SetView(1);
 	}
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
-		cCamera->SetView(3);
+		Camera::GetInstance()->SetView(3);
 	}
 	if (key == GLFW_KEY_3 && action == GLFW_PRESS) {
-		cCamera->SetView(2);
+		Camera::GetInstance()->SetView(2);
 	}
 	if (key == GLFW_KEY_4 && action == GLFW_PRESS) {
-		cCamera->SetView(4);
+		Camera::GetInstance()->SetView(4);
 	}
 	if (controller == CannonMovement) {
 		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
