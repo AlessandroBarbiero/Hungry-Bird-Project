@@ -512,13 +512,14 @@ class GameMaster
 protected:
 	GameMaster()
 	{}
-
+	int numberOfPigAlive = 6;
 	static GameMaster* singleton_;
 	std::list<GameObject*> onScene;
 	Effect* boomEffect;
 	Effect* hitEffect;
 	Effect* missEffect;
 	GameObject* cannon;
+	GameObject* gameOver;
 
 public:
 
@@ -527,6 +528,18 @@ public:
 	void operator=(const GameMaster&) = delete;
 
 	static GameMaster* GetInstance();
+
+	void PigHit() {
+		numberOfPigAlive--;
+		if (numberOfPigAlive == 0) {
+			std::cout << "gg";
+			gameOver->showOnScreen();
+		}
+	}
+
+	void setGameOver(GameObject* go) {
+		gameOver = go;
+	}
 
 	void setBoomEffect(Effect* boom) {
 		boomEffect = boom;
@@ -817,6 +830,7 @@ public:
 		hit->pop(pos);
 		std::cout << "HIT PIG " << this << "\n";
 		this->hide();
+		GameMaster::GetInstance()->PigHit();
 	}
 
 	virtual UniformBufferObject update(GLFWwindow* window, UniformBufferObject ubo) override {
@@ -1113,9 +1127,12 @@ protected:
 	Asset A_SkyCity;
 	Decoration skyCity;
 
+	Asset A_GameOver;
+	Decoration gameOver;
+
 	DescriptorSet DS_global;
 
-	std::vector<Pig*> pigsHitBox;
+	std::vector<Pig*> pigs;
 	std::vector<Decoration*> decorHitBox;
 
 	// Here you set the main application parameters
@@ -1178,6 +1195,16 @@ protected:
 		GameMaster::GetInstance()->setBoomEffect(boom);
 		GameMaster::GetInstance()->setHitEffect(hit);
 		GameMaster::GetInstance()->setMissEffect(miss);
+		GameMaster::GetInstance()->setGameOver(&gameOver);
+
+		//-------------Pigs
+		pigs.push_back(&pigBaloon);
+		pigs.push_back(&pigShip);
+		pigs.push_back(&pigShipMini);
+		pigs.push_back(&pigCitySky);
+		pigs.push_back(&pigHouse);
+		pigs.push_back(&pigStd);
+		
 	}
 
 	void loadHitBoxes() {
@@ -1296,27 +1323,25 @@ protected:
 
 		A_PigStd.init(this, "/PigCustom/PigStandard.obj", "/texture.png", &DSLobj);
 		pigStd.init(this, &DSLobj, &A_PigStd);
-		pigStd.showOnScreen();
 
 		A_PigHelmet.init(this, "/PigCustom/PigHelmet.obj", "/texture.png", &DSLobj);
 		pigBaloon.init(this, &DSLobj, &A_PigHelmet);
-		pigBaloon.showOnScreen();
 
 		A_PigKingHouse.init(this, "/PigCustom/PigKingHouse.obj", "/texture.png", &DSLobj);
 		pigHouse.init(this, &DSLobj, &A_PigKingHouse);
-		pigHouse.showOnScreen();
 
 		A_PigKingShip.init(this, "/PigCustom/PigKingBoat.obj", "/texture.png", &DSLobj);
 		pigShip.init(this, &DSLobj, &A_PigKingShip);
-		pigShip.showOnScreen();
 
 		A_PigMechanics.init(this, "/PigCustom/PigMechanic.obj", "/texture.png", &DSLobj);
 		pigShipMini.init(this, &DSLobj, &A_PigMechanics);
-		pigShipMini.showOnScreen();
 
 		A_PigStache.init(this, "/PigCustom/PigStache.obj", "/texture.png", &DSLobj);
 		pigCitySky.init(this, &DSLobj, &A_PigStache);
-		pigCitySky.showOnScreen();
+
+		for (Pig* p : pigs) {
+			p->showOnScreen();
+		}
 
 		A_Terrain.init(this, "/Terrain/Terrain.obj", "/Terrain/terrain.png", &DSLobj);
 		terrain.init(this, &DSLobj, &A_Terrain);
@@ -1373,6 +1398,9 @@ protected:
 		A_Miss.init(this, "/Effects/NO.obj", "/Effects/NO_Texture.png", &DSLobj);
 		miss->init(this, &DSLobj, &A_Miss);
 
+		A_GameOver.init(this, "/Decorations/GameOver.obj", "/Decorations/GameOver1.png", &DSLobj);
+		gameOver.init(this, &DSLobj, &A_GameOver);
+
 		skyBox.init(this, DSLobj, DSLglobal);
 
 
@@ -1417,6 +1445,7 @@ protected:
 		A_ShipVikings.cleanup();
 		A_TowerSiege.cleanup();
 		A_SkyCity.cleanup();
+		A_GameOver.cleanup();
 
 		skyBox.cleanup();
 
@@ -1488,6 +1517,7 @@ protected:
 		 A_ShipVikings.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_TowerSiege.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 		 A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		 A_GameOver.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
 		 // ---------------------- EFFECTS -----------------------------
 		 A_Boom.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
