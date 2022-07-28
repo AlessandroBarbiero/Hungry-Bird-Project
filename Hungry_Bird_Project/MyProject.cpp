@@ -37,6 +37,7 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
 
+
 //Singleton class used to perceive the time
 class GameTime
 {
@@ -594,6 +595,92 @@ void GameObject::hide() {
 		_onScreen = false;
 }
 
+class Text {
+protected:
+	Pipeline P_Text;
+	Model M_Text;
+	Texture T_Text;
+	DescriptorSet DS_Text;
+
+	bool active = false;
+
+	std::vector<std::string> SceneText = {"Camera Views: ", "1 - 2 - 3 - 4", "" , "Cannon Directions:", " a - w - s - d", "" , "Cannon Power:", "q - e", "" , "Shoot:", "Spacebar"};
+
+public:
+	// initialize all attributes
+	void init(BaseProject* bp, DescriptorSetLayout DSLobj, DescriptorSetLayout DSLglobal) {
+		P_Text.init(bp, "shaders/TextVert.spv", "shaders/TextFrag.spv", { &DSLglobal, &DSLobj });
+		M_Text.initText(bp, SceneText);
+		T_Text.init(bp, TEXTURE_PATH + "/Text/Roman.png");
+		DS_Text.init(bp, &DSLobj, {
+		{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+		{1, TEXTURE, 0, &T_Text}
+			});
+	}
+
+	void setActive() {
+		active = true;
+	}
+
+	void setDeactive() {
+		active = false;
+	}
+
+	bool isActive() {
+		return active;
+	}
+
+	// Populate command buffer ( bind pipeline, descriptorSet global and descriptorSet skyBox )
+	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage, DescriptorSet DS_global) {
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P_Text.graphicsPipeline);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P_Text.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
+			0, nullptr);
+
+		VkBuffer vertexBuffers_skyBox[] = { M_Text.vertexBuffer };
+		VkDeviceSize offsets_skyBox[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers_skyBox, offsets_skyBox);
+		vkCmdBindIndexBuffer(commandBuffer, M_Text.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P_Text.pipelineLayout, 1, 1, &DS_Text.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(M_Text.indices.size()), 1, 0, 0, 0);
+	}
+
+	// update before rendering
+	UniformBufferObject update(UniformBufferObject ubo) {
+		if (active) {
+			ubo.model = glm::mat4(1.0f);
+		}
+		else {
+			ubo.model = glm::mat4(0.0f);
+		}
+		return ubo;
+	}
+
+	// update ubo and render
+	void updateUniformBuffer(VkDevice device, int currentImage, void* data, UniformBufferObject ubo) {
+		ubo = update(ubo);
+		vkMapMemory(device, DS_Text.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, DS_Text.uniformBuffersMemory[0][currentImage]);
+	}
+
+	// cleanup all the attributes
+	void cleanup() {
+		DS_Text.cleanup();
+		T_Text.cleanup();
+		M_Text.cleanup();
+		P_Text.cleanup();
+	}
+};
 
 class SkyBox {
 protected:
@@ -1012,6 +1099,7 @@ class CannonTop : public GameObject {
 
 
 CannonTop *cTop;
+Text* cText;
 // MAIN ! 
 class MyProject : public BaseProject {
 protected:
@@ -1022,6 +1110,7 @@ protected:
 	DescriptorSetLayout DSLobj;
 
 	SkyBox skyBox;
+	Text text;
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
@@ -1142,6 +1231,7 @@ protected:
 	void setGameState() {
 		//set up callback for input
 		cTop = &cannonTop;
+		cText = &text;
 
 		glfwSetKeyCallback(window, keyCallback);
 
@@ -1374,6 +1464,7 @@ protected:
 		miss->init(this, &DSLobj, &A_Miss);
 
 		skyBox.init(this, DSLobj, DSLglobal);
+		text.init(this, DSLobj, DSLglobal);
 
 
 		DS_global.init(this, &DSLglobal, {
@@ -1419,6 +1510,7 @@ protected:
 		A_SkyCity.cleanup();
 
 		skyBox.cleanup();
+		text.cleanup();
 
 		P1.cleanup();
 
@@ -1433,6 +1525,9 @@ protected:
 	// You send to the GPU all the objects you want to draw,
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
+
+
+		text.populateCommandBuffer(commandBuffer, currentImage, DS_global);
 
 		// --------------------- SKYBOX -------------------------
 
@@ -1469,31 +1564,30 @@ protected:
 
 		// ------------------------ Terrain -----------------
 
-		 A_Terrain.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_Terrain.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
-		 // ----------------------- Cannon -------------------
+		// ----------------------- Cannon -------------------
 
-		 A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_CannonBot.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_CannonTop.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
-		 // ----------------------- Trajectory -------------------
+		// ----------------------- Trajectory -------------------
 
-		 A_Sphere.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_Sphere.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
-		 // ----------------------- DECORATIONS --------------------
-		 A_Baloon.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_SeaCity25.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_SeaCity37.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_ShipSmall.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_ShipVikings.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_TowerSiege.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		// ----------------------- DECORATIONS --------------------
+		A_Baloon.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_SeaCity25.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_SeaCity37.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_ShipSmall.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_ShipVikings.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_TowerSiege.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_SkyCity.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 
-		 // ---------------------- EFFECTS -----------------------------
-		 A_Boom.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_Hit.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 A_Miss.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
-		 
+		// ---------------------- EFFECTS -----------------------------
+		A_Boom.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_Hit.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
+		A_Miss.populateCommandBuffer(commandBuffer, currentImage, DS_global, &P1);
 	}
 
 	// Here is where you update the uniforms.
@@ -1525,7 +1619,8 @@ protected:
 		// SkyBox
 
 		skyBox.updateUniformBuffer(device, currentImage, data, ubo);
-
+		
+		text.updateUniformBuffer(device, currentImage, data, ubo);
 		// Here is where you actually update your uniforms
 		GameMaster::GetInstance()->Notify(window, device, currentImage, data, ubo);
 
@@ -1565,6 +1660,14 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	}
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
 		Camera::GetInstance()->NextView();
+	}
+	if (key == GLFW_KEY_I && action == GLFW_PRESS) {
+		if (cText->isActive()) {
+			cText->setDeactive();
+		}
+		else {
+			cText->setActive();
+		}
 	}
 	//to debug the position of the camera if we want to add new view
 	if (key == GLFW_KEY_L && action == GLFW_PRESS) {

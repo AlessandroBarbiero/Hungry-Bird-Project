@@ -187,10 +187,12 @@ struct Model {
 	VkDeviceMemory indexBufferMemory;
 	
 	void loadModel(std::string file);
+	void loadText(std::vector<std::string> SceneText);
 	void createIndexBuffer();
 	void createVertexBuffer();
 
 	void init(BaseProject *bp, std::string file);
+	void initText(BaseProject* bp, std::vector<std::string> SceneText);
 	void cleanup();
 };
 
@@ -1512,8 +1514,186 @@ void Model::loadModel(std::string file) {
 			indices.push_back(vertices.size()-1);
 		}
 	}
-	
-	
+}
+
+void Model::loadText(std::vector<std::string> SceneText) {
+
+	float width = 71;
+	float offset = 20;
+	float height = 78;
+
+	float deltaW = 31;
+
+	float deltaVert = 0;
+
+	float screenW = deltaW / 500;
+	float screenH = height / 500;
+
+	int c,h,w;
+
+	int i = 0;
+
+	float x, y;
+
+	float windowW = 1600;
+	float windowH = 1200;
+
+	float startX = -0.95f;
+	float startY = -0.95f;
+
+	float texW = 711;
+	float texH = 703;
+
+	for (auto& Txt : SceneText) {
+		for (int j = 0; j < Txt.length(); j++) {
+			c = ((int)Txt[j]) - 33;
+			if (c == -1) {
+				c = 31;
+			}
+			h = c / 10;
+			w = c % 10;
+
+
+			x = (w * width) + offset;
+			y = h * height;
+
+			Vertex vertex{};
+
+			vertex.pos = {
+				(startX + j * screenW),
+				(startY + i * screenH),
+				0.0
+			};
+
+			vertex.texCoord = {
+				(x / texW),
+				(y / texH)
+			};
+
+			vertices.push_back(vertex);
+
+			vertex.pos = {
+				(startX + j * screenW + screenW),
+				(startY + i * screenH),
+				0.0
+			};
+
+			vertex.texCoord = {
+				((x + deltaW) / texW),
+				(y / texH)
+			};
+
+			vertices.push_back(vertex);
+
+			vertex.pos = {
+				(startX + j * screenW),
+				(startY + i * screenH + screenH),
+				0.0
+			};
+
+			vertex.texCoord = {
+				(x / texW),
+				((y + height) / texH)
+			};
+
+			vertices.push_back(vertex);
+
+			vertex.pos = {
+				(startX + j * screenW + screenW),
+				(startY + i * screenH + screenH),
+				0.0
+			};
+
+			vertex.texCoord = {
+				((x + deltaW) / texW),
+				((y + height) / texH)
+			};
+
+			vertices.push_back(vertex);
+
+			indices.push_back(deltaVert + (j * 4));
+			indices.push_back(deltaVert + (j * 4) + 1);
+			indices.push_back(deltaVert + (j * 4) + 2);
+
+			indices.push_back(deltaVert + (j * 4) + 1);
+			indices.push_back(deltaVert + (j * 4) + 2);
+			indices.push_back(deltaVert + (j * 4) + 3);
+		}
+		i++;
+		deltaVert = vertices.size();
+	}
+
+	c = 31;
+			
+	h = c / 10;
+	w = c % 10;
+
+
+	x = (w * width) + offset;
+	y = h * height;
+
+	Vertex vertex{};
+
+	vertex.pos = {
+		-1.0f,
+		-1.0f,
+		0.1f
+	};
+
+	vertex.texCoord = {
+		(x / texW),
+		(y / texH)
+	};
+
+	vertices.push_back(vertex);
+
+	vertex.pos = {
+		0.3f,
+		-1.0f,
+		0.1f
+	};
+
+	vertex.texCoord = {
+		((x + deltaW) / texW),
+		(y / texH)
+	};
+
+	vertices.push_back(vertex);
+
+	vertex.pos = {
+		-1.0f,
+		1.0f,
+		0.1f
+	};
+
+	vertex.texCoord = {
+		(x / texW),
+		((y + height) / texH)
+	};
+
+	vertices.push_back(vertex);
+
+	vertex.pos = {
+		0.3f,
+		1.0f,
+		0.1f
+	};
+
+	vertex.texCoord = {
+		((x + deltaW) / texW),
+		((y + height) / texH)
+	};
+
+	vertices.push_back(vertex);
+
+	indices.push_back(deltaVert);
+	indices.push_back(deltaVert + 1);
+	indices.push_back(deltaVert + 2);
+
+	indices.push_back(deltaVert + 1);
+	indices.push_back(deltaVert + 2);
+	indices.push_back(deltaVert + 3);
+
 }
 
 // Lesson 21
@@ -1548,6 +1728,13 @@ void Model::createIndexBuffer() {
 void Model::init(BaseProject *bp, std::string file) {
 	BP = bp;
 	loadModel(file);
+	createVertexBuffer();
+	createIndexBuffer();
+}
+
+void Model::initText(BaseProject* bp, std::vector<std::string> SceneText) {
+	BP = bp;
+	loadText(SceneText);
 	createVertexBuffer();
 	createIndexBuffer();
 }
