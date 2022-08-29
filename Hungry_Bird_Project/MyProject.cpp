@@ -1240,9 +1240,9 @@ protected:
 		IconImages[0].pixels = pixels;
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 200;	//10
-		texturesInPool = 200;		//9
-		setsInPool = 200;			//10
+		uniformBlocksInPool = 37;	
+		texturesInPool = 36;
+		setsInPool = 37;
 	}
 
 	void setGameState() {
