@@ -1,4 +1,4 @@
-# Hungry_Bird_Project
+# Hungry Bird
 Final Project for the Computer Graphic course.
 
 3D game inspired by Angry Birds created using `Vulkan` as graphical library without an external game engine.\
